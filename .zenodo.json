@@ -1,0 +1,15 @@
+{
+  "title": "Replication package: Lineage Diversity and Metadata-Defined Option Survival in the Hugging Face Model Supply Chain",
+  "upload_type": "software",
+  "description": "Code, derived results, validation protocols, and documentation for a study of counterfactual upstream-model removal on the Hugging Face model lineage graph (snapshot 2026-09-25, 3,094,856 models). Includes the revised analyses, the rerun of the initially planned analysis, matched-null sensitivity analyses, and generators for all paper and supplement tables. The raw snapshot and processed graph tables are archived in a separate Zenodo dataset record. Cleaning flags are heuristics, not judgments about uploaders; account names in example IDs are pseudonymized.",
+  "creators": [
+    {
+      "name": "An, Donggyu",
+      "affiliation": "Yeungnam University",
+      "orcid": "0009-0004-9977-4168"
+    }
+  ],
+  "keywords": ["Hugging Face", "pre-trained models", "software supply chain", "model lineage", "mining software repositories"],
+  "license": "MIT",
+  "version": "1.0.0"
+}

@@ -3,7 +3,7 @@
 Code and derived results for a study of counterfactual upstream-model removal on the Hugging Face model
 lineage graph (snapshot **2026-09-25**, 3,094,856 models, 951,033 lineage edges).
 
-> Status: private until submission. The raw snapshot (~184 MB) and processed graph tables exceed GitHub's file
+> The raw snapshot (~184 MB) and processed graph tables exceed GitHub's file
 > limit and will be archived on Zenodo with a DOI. Their SHA-256 hashes are in `02_data/MANIFEST_2026-09-25.json`.
 
 ## Layout
@@ -41,4 +41,5 @@ Runs checkpoint after every (shock, k) block and resume where they stopped. Rand
 - License classes come from self-declared tags; they are not legal assessments.
 
 ## License
-Code: MIT (to be confirmed). Hugging Face metadata remains subject to the Hub's terms.
+Code: MIT (see LICENSE). Derived tables and results: CC BY 4.0. Hugging Face metadata remains subject to
+the Hub's terms of service.
