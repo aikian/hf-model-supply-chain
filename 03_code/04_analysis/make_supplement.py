@@ -43,7 +43,7 @@ def planned_table():
             null = g[g.strategy == ("random" if x.hyp == "H2a" else "random_matched")].models_lost.mean()
             star = "$^{*}$" if x.reject else ""
             lines.append(f"{x.hyp} & {int(x.k)} & {NAMES[x.strategy]} & {x.observed:.3f} & {x.null_mean:.3f} & "
-                         f"{x.p_holm:.3f}{star} & {x.cliffs_delta:.2f} & "
+                         f"{x.p_holm:.3f}{star} & {('$-$' + f'{-x.cliffs_delta:.2f}') if x.cliffs_delta < 0 else f'{x.cliffs_delta:.2f}'} & "
                          f"{(f'{null / tgt:.3f}' if null / tgt >= 0.01 else f'{null / tgt:.4f}')} \\\\")
         lines.append(r"\midrule")
     lines = lines[:-1]
@@ -120,9 +120,11 @@ def diff_table():
                 t = g[g.strategy == s].iloc[0]
                 n = g[(g.strategy == "random_matched") & (g.matched_to == s)]
                 lo, hi = n.options_lost.quantile([0.025, 0.975])
+                diff = t.options_lost - n.options_lost.mean()
+                diff_s = "0.0" if abs(diff) < 0.05 else (f"+{diff:.1f}" if diff > 0 else f"$-${-diff:.1f}")
                 ratio = (n.removed_providers / t.removed_providers).median() if t.removed_providers else np.nan
                 out.append(f"{sem} & {k} & {NAMES[s]} & {int(t.options_lost)} & {n.options_lost.mean():.1f} & "
-                           f"{t.options_lost - n.options_lost.mean():+.1f} & {lo:.0f}--{hi:.0f} & "
+                           f"{diff_s} & {lo:.0f}--{hi:.0f} & "
                            f"{int(crit.loc[(sem, k, s)])} & {ratio:.2f} \\\\")
     return "\n".join(out)
 

@@ -43,12 +43,18 @@ HIT_FC, HIT_EC = "#F4C7BE", "#A8321F"     # 사용 불가: 채움이 더 진하�
 OK_FC, OK_EC = "#FFFFFF", "#6B7785"       # 영향 없음: 흰 채움, 얇은 회색 테두리
 INK, MUTED = "#1F2328", "#57606A"
 # 좌표 단위 = 인치 (IEEE 단 폭 3.5in)
+# 글자 7.5/7pt(본문 캡션 8pt에 맞춤)를 2줄 박스에 넣으면 세 열의 최소 폭 합이 3.5in을 넘는다.
+# 그래서 열을 고정하지 않고 행을 어긋나게 배치한다: 제거 노드는 2세대 열 왼쪽에 붙이고(루트 위쪽 빈 칸으로
+# 확장), 루트의 나머지 자식은 2세대 박스 아래 행(4~6)에 두어 2세대 열 아래로 확장한다.
 FIG_W = 3.5
-COL_W = [1.00, 1.13, 1.13]                 # 열별 박스 폭
 GAP = 0.12
-XS = [COL_W[0] / 2, COL_W[0] + GAP + COL_W[1] / 2, COL_W[0] + COL_W[1] + 2 * GAP + COL_W[2] / 2]
-BH, DY = 0.32, 0.43                        # 박스 높이, 칸 간격
-FS_TITLE, FS_SUB, FS_NOTE = 6.0, 5.3, 5.6
+W_BASE, W_MID, W_RIGHT = 1.27, 1.36, 1.36  # 박스 폭: 루트 / 1세대 / 2세대 (가장 긴 글줄 + 좌우 여유)
+X_BASE = W_BASE / 2                        # 루트 중심
+X_RIGHT = FIG_W - W_RIGHT / 2              # 2세대 (오른쪽 끝)
+X_MID = FIG_W - W_MID / 2                  # 루트의 나머지 자식: 2세대 아래, 오른쪽 정렬 (루트에서 대각 화살표)
+X_REM = FIG_W - W_RIGHT - GAP - W_MID / 2  # 제거 노드 (2세대 왼쪽)
+BH, DY = 0.36, 0.44                        # 박스 높이, 칸 간격
+FS_TITLE, FS_SUB, FS_NOTE = 7.5, 7.0, 7.0
 
 
 def main():
@@ -79,67 +85,74 @@ def main():
     # ------------------------------------------------ 배치 (slot 0 = 맨 위)
     nodes, edges = {}, []
 
-    def node(key, col, slot, lines, hit, bold=False):
-        nodes[key] = dict(col=col, x=XS[col], y=-slot * DY, lines=lines, hit=hit, bold=bold)
+    def node(key, x, w, slot, lines, hit, bold=False):
+        nodes[key] = dict(x=x, w=w, y=-slot * DY, lines=lines, hit=hit, bold=bold)
 
     def label(mid, n):
         name, org = DISPLAY.get(mid, (mid.split("/", 1)[1], mid.split("/", 1)[0]))
         return [name, f"{org} · n = {n:,}"]
 
     for j, (_, r) in enumerate(show2.iterrows()):
-        node(f"a{j}", 2, j, label(r["child_id"], int(r["desc"])), True)
+        node(f"a{j}", X_RIGHT, W_RIGHT, j, label(r["child_id"], int(r["desc"])), True)
         edges.append(("rem", f"a{j}", r["relation"], True))
     # 후손 집합은 서로 겹친다 (병합, 재배포본의 양자화 등) → 합이 아니라 합집합으로 센다
     n_rest2 = len(eco.reach([idx[c] for c in rest2["child_id"]]))
-    node("a_rest", 2, 3, [f"+{len(rest2):,} other children", f"n = {n_rest2:,} incl. subtrees"], True)
+    node("a_rest", X_RIGHT, W_RIGHT, 3, [f"+{len(rest2):,} other children", f"n = {n_rest2:,} incl. subtrees"], True)
     edges.append(("rem", "a_rest", "finetune", True))
-    node("rem", 1, 1.5, label(REMOVED, int(rem["desc"])), True, bold=True)
+    node("rem", X_REM, W_MID, 1.5, label(REMOVED, int(rem["desc"])), True, bold=True)
     edges.append(("base", "rem", rem["relation"], True))
-    node("base", 0, 3.0, label(BASE, base_desc), False, bold=True)
+    node("base", X_BASE, W_BASE, 3.0, label(BASE, base_desc), False, bold=True)
+    # 루트의 나머지 자식은 2세대 열과 가로로 겹치므로 a_rest(행 3) 아래 행 4부터 둔다
     for j, (_, r) in enumerate(show1.iterrows()):
-        node(f"b{j}", 1, 3.5 + j, label(r["child_id"], int(r["desc"])), False)
+        node(f"b{j}", X_MID, W_MID, 4 + j, label(r["child_id"], int(r["desc"])), False)
         edges.append(("base", f"b{j}", r["relation"], False))
-    node("b_rest", 1, 5.5, [f"+{len(rest1):,} other children", "all relation types"], False)
+    node("b_rest", X_MID, W_MID, 6, [f"+{len(rest1):,} other children", "all relation types"], False)
     edges.append(("base", "b_rest", "finetune", False))
 
     # ------------------------------------------------ 그리기
     plt.rcParams.update({"font.family": "DejaVu Sans"})
-    y_top, y_bot = BH / 2 + 0.03, -5.5 * DY - BH / 2 - 0.03
+    y_top, y_bot = BH / 2 + 0.03, -6 * DY - BH / 2 - 0.03
     fig = plt.figure(figsize=(FIG_W, (y_top - y_bot) * FIG_W / (FIG_W + 0.04)))
     ax = fig.add_axes([0, 0, 1, 1])
     M = 0.02                                   # 테두리가 잘리지 않게 좌우 여백
     ax.set_xlim(-M, FIG_W + M); ax.set_ylim(y_bot, y_top); ax.set_aspect("equal"); ax.axis("off")
     for a, b, rel, hit in edges:
         A, B = nodes[a], nodes[b]
-        ax.annotate("", xy=(B["x"] - COL_W[B["col"]] / 2, B["y"]), xytext=(A["x"] + COL_W[A["col"]] / 2, A["y"]),
+        src = (A["x"] + A["w"] / 2, A["y"])
+        if B["x"] - B["w"] / 2 >= src[0] + 0.05:            # 자식이 오른쪽에 있으면 왼쪽 변으로
+            dst = (B["x"] - B["w"] / 2, B["y"])
+        else:                                                # 자식이 위쪽에 겹쳐 있으면 아래 변으로
+            dst = (B["x"], B["y"] - BH / 2)
+        ax.annotate("", xy=dst, xytext=src,
                     arrowprops=dict(arrowstyle="-|>", lw=0.75, linestyle=LS.get(rel, "-"),
                                     mutation_scale=5, shrinkA=0, shrinkB=0.5,
                                     color=HIT_EC if hit else OK_EC), zorder=1)
     texts = []
     for k, n in nodes.items():
-        w = COL_W[n["col"]]
+        w = n["w"]
         n["box"] = (n["x"] - w / 2, n["y"] - BH / 2, w, BH)
         ax.add_patch(FancyBboxPatch(n["box"][:2], w, BH, boxstyle="round,pad=0,rounding_size=0.05",
                                     fc=HIT_FC if n["hit"] else OK_FC, ec=HIT_EC if n["hit"] else OK_EC,
                                     lw=1.4 if k == "rem" else (0.8 if n["hit"] else 0.6), zorder=2))
-        t1 = ax.text(n["x"], n["y"] + 0.065, n["lines"][0], ha="center", va="center", color=INK,
+        t1 = ax.text(n["x"], n["y"] + 0.078, n["lines"][0], ha="center", va="center", color=INK,
                      fontsize=FS_TITLE, fontweight="bold" if n["bold"] else "normal", zorder=3)
-        t2 = ax.text(n["x"], n["y"] - 0.08, n["lines"][1], ha="center", va="center", color=MUTED,
+        t2 = ax.text(n["x"], n["y"] - 0.085, n["lines"][1], ha="center", va="center", color=MUTED,
                      fontsize=FS_SUB, zorder=3)
         texts += [(k, t1), (k, t2)]
     r = nodes["rem"]
-    ax.text(r["x"], r["y"] + BH / 2 + 0.05, "✕  removed", ha="center", va="bottom",
-            color=HIT_EC, fontsize=FS_NOTE, fontweight="bold")
+    rm_lab = ax.text(r["x"], r["y"] + BH / 2 + 0.05, "✕  removed", ha="center", va="bottom",
+                     color=HIT_EC, fontsize=FS_NOTE, fontweight="bold")
+    # 루트 아래 왼쪽 칸(행 3.4~6.4)에 주석과 범례를 둔다 (다른 곳은 박스·화살표가 차지)
     pct = 100 * rem_total / (base_desc + 1)
-    note = ax.text(XS[2], -4.75 * DY, f"1 removal →\n{rem_total:,} models unavailable\n({pct:.0f}% of the family)",
+    note = ax.text(X_BASE, -4.25 * DY, f"1 removal → {rem_total:,}\nmodels unavailable\n({pct:.0f}% of the family)",
                    ha="center", va="center", color=HIT_EC, fontsize=FS_NOTE, linespacing=1.35)
     handles = [Line2D([0], [0], color=INK, lw=0.75, ls=LS["finetune"], label="fine-tune"),
                Line2D([0], [0], color=INK, lw=0.75, ls=LS["quantized"], label="quantized"),
-               Line2D([0], [0], marker="s", ls="", ms=5.5, mfc=HIT_FC, mec=HIT_EC, mew=0.8, label="unavailable"),
-               Line2D([0], [0], marker="s", ls="", ms=5.5, mfc=OK_FC, mec=OK_EC, mew=0.6, label="unaffected")]
-    leg = ax.legend(handles=handles, loc="center", bbox_to_anchor=(XS[0], -4.85 * DY), bbox_transform=ax.transData,
-                    frameon=False, fontsize=FS_SUB, handlelength=1.8, labelspacing=0.3, borderpad=0,
-                    title="n = descendants", title_fontsize=FS_SUB)
+               Line2D([0], [0], marker="s", ls="", ms=6.5, mfc=HIT_FC, mec=HIT_EC, mew=0.8, label="unavailable"),
+               Line2D([0], [0], marker="s", ls="", ms=6.5, mfc=OK_FC, mec=OK_EC, mew=0.6, label="unaffected")]
+    leg = ax.legend(handles=handles, loc="lower center", bbox_to_anchor=(X_BASE, y_bot + 0.03),
+                    bbox_transform=ax.transData, frameon=False, fontsize=FS_SUB, handlelength=1.8,
+                    labelspacing=0.3, borderpad=0, title="n = descendants", title_fontsize=FS_SUB)
 
     # ------------------------------------------------ 자동 레이아웃 검사: 글자가 박스 안에 있는가, 요소끼리 겹치는가
     fig.canvas.draw()
@@ -155,13 +168,28 @@ def main():
         if x0 < bx + 0.02 or x1 > bx + bw - 0.02 or y0 < by or y1 > by + bh:
             problems.append(f"text overflows box '{k}': '{t.get_text()}'")
     boxes = [nodes[k]["box"] for k in nodes]
-    for name, art in [("note", note), ("legend", leg)]:
-        x0, y0, x1, y1 = ext(art)
+    free = {"note": ext(note), "legend": ext(leg), "removed label": ext(rm_lab)}
+    for name, (x0, y0, x1, y1) in free.items():
         if x0 < -0.02 or x1 > FIG_W + 0.02 or y0 < y_bot or y1 > y_top:
             problems.append(f"{name} outside figure")
         for k, (bx, by, bw, bh) in zip(nodes, boxes):
             if x0 < bx + bw and x1 > bx and y0 < by + bh and y1 > by:
                 problems.append(f"{name} overlaps box '{k}'")
+    # 박스끼리, 자유 텍스트끼리 겹침
+    keys = list(nodes)
+    for i, ki in enumerate(keys):
+        bx, by, bw, bh = nodes[ki]["box"]
+        for kj in keys[i + 1:]:
+            cx, cy, cw, ch = nodes[kj]["box"]
+            if bx < cx + cw and bx + bw > cx and by < cy + ch and by + bh > cy:
+                problems.append(f"box '{ki}' overlaps box '{kj}'")
+    names = list(free)
+    for i, ni in enumerate(names):
+        x0, y0, x1, y1 = free[ni]
+        for nj in names[i + 1:]:
+            u0, v0, u1, v1 = free[nj]
+            if x0 < u1 and x1 > u0 and y0 < v1 and y1 > v0:
+                problems.append(f"{ni} overlaps {nj}")
     if problems:
         raise SystemExit("LAYOUT CHECK FAILED:\n  " + "\n  ".join(problems))
     print("layout check passed: all text inside boxes, no overlaps")

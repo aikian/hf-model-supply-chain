@@ -9,7 +9,13 @@
       "orcid": "0009-0004-9977-4168"
     }
   ],
-  "keywords": ["Hugging Face", "pre-trained models", "software supply chain", "model lineage", "mining software repositories"],
+  "keywords": [
+    "Hugging Face",
+    "pre-trained models",
+    "software supply chain",
+    "model lineage",
+    "mining software repositories"
+  ],
   "license": "MIT",
-  "version": "1.0.0"
+  "version": "1.0.1"
 }

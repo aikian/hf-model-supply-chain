@@ -59,26 +59,27 @@ def main():
     print(tab.to_string(index=False))
     print("derived T1 models:", n_der)
 
-    plt.rcParams.update({"font.family": "DejaVu Sans", "font.size": 6.2})
-    fig, ax = plt.subplots(figsize=(3.5, 2.35))
+    # 글자 7~7.5pt (본문 캡션 8pt에 맞춤). 폭 3.5in = 단 폭, 높이는 회사명 12줄 + 두 줄 x축 이름이 들어가게 2.8in
+    plt.rcParams.update({"font.family": "DejaVu Sans", "font.size": 7.5})
+    fig, ax = plt.subplots(figsize=(3.5, 2.8))
     y = np.arange(TOP)[::-1]
     ax.barh(y, top.values, color=BAR, height=0.68, zorder=2)
     for yi, v in zip(y, top.values):
-        ax.text(v + 0.4, yi, f"{v:.1f}%", va="center", ha="left", fontsize=5.6, color=INK)
-    ax.set_yticks(y, top.index, fontsize=6.0)
-    ax.set_xlabel("Derived models descending from the company (%)", fontsize=6.0)
+        ax.text(v + 0.4, yi, f"{v:.1f}%", va="center", ha="left", fontsize=7.0, color=INK)
+    ax.set_yticks(y, top.index, fontsize=7.5)
+    ax.set_xlabel("Derived models descending\nfrom the company (%)", fontsize=7.5, linespacing=1.2)   # 한 줄(2.66in)은 축보다 길어 잘림
     ax.set_xlim(0, max(top.values) * 1.22)
     ax.set_xticks([t for t in range(0, 101, 5) if t <= max(top.values) * 1.22])
-    ax.tick_params(axis="x", labelsize=5.8, length=2)
+    ax.tick_params(axis="x", labelsize=7.0, length=2)
     ax.tick_params(axis="y", length=0)
     ax.grid(axis="x", color="#E5E7EB", lw=0.5, zorder=0)
     for s in ["top", "right", "left"]:
         ax.spines[s].set_visible(False)
     ax.spines["bottom"].set_color("#9AA3AD")
-    # 누적 합집합 주석: 상위 5·10개
-    note = (f"Top 5 companies: {cum[4]:.0f}% of derived models\n"
-            f"Top 10 companies: {cum[9]:.0f}%\n(n = {n_der:,} derived models)")
-    txt = ax.text(0.97, 0.06, note, transform=ax.transAxes, ha="right", va="bottom", fontsize=5.8,
+    # 누적 합집합 주석: 상위 5·10개 (줄을 짧게 나눠 아래쪽 짧은 막대의 값 라벨과 겹치지 않게)
+    note = (f"Top 5 companies: {cum[4]:.0f}%\nTop 10 companies: {cum[9]:.0f}%\n"
+            f"of n = {n_der:,} derived models")
+    txt = ax.text(0.97, 0.06, note, transform=ax.transAxes, ha="right", va="bottom", fontsize=7.0,
                   color=LINE, linespacing=1.35)
     fig.tight_layout(pad=0.2)
 

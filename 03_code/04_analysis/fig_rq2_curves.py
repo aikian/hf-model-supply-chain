@@ -24,7 +24,7 @@ ROOT = Path(__file__).resolve().parents[2]
 STRAT = [("descendants", "descendants", "#23395B", "o"), ("descendant_authors", "descendant accounts", "#B03A2E", "s"),
          ("downloads", "downloads", "#2E7D5B", "^"), ("outdegree", "out-degree", "#C7862F", "D")]
 SEM = [("legal", "Legal shock (all descendants)"), ("availability", "Availability shock (adapters; mirrors substitute)")]
-plt.rcParams.update({"font.family": "DejaVu Sans", "font.size": 6.2})
+plt.rcParams.update({"font.family": "DejaVu Sans", "font.size": 7.5})   # 눈금·축 이름 7.5pt (캡션 8pt 기준)
 
 
 def main():
@@ -35,7 +35,7 @@ def main():
     finite = t["ratio_vs_matched"].replace([np.inf], np.nan)
     top = max(2.0, float(np.nanmax(finite)) * 1.6) if finite.notna().any() else 2.0
     bottom = min(0.5, float(np.nanmin(finite[finite > 0])) / 1.6) if (finite > 0).any() else 0.5
-    fig, axes = plt.subplots(2, 1, figsize=(3.5, 3.9), sharex=True)
+    fig, axes = plt.subplots(2, 1, figsize=(3.5, 4.2), sharex=True)
     for ax, (sem, title) in zip(axes, SEM):
         g = t[t["semantics"] == sem]
         ks = sorted(g["k"].unique())
@@ -65,18 +65,29 @@ def main():
         yt = [v for v in [0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50, 100] if bottom / 1.15 <= v <= top * 1.15]
         ax.set_yticks(yt, [f"{v:g}" for v in yt])
         ax.yaxis.set_minor_formatter(matplotlib.ticker.NullFormatter())
-        ax.set_ylabel("Loss ratio vs. matched random")
-        ax.set_title(title, fontsize=6.4, loc="left")
+        ax.set_title(title, fontsize=8.0, loc="left")
         ax.grid(color="#E5E7EB", lw=0.4)
         for sp in ["top", "right"]:
             ax.spines[sp].set_visible(False)
     axes[-1].set_xlabel("Removal budget k (upstream models)")
+    # y축 이름은 7.5pt에서 패널 하나보다 길어 두 패널이 공유하는 이름 하나로 둔다
+    ylab = fig.supylabel("Loss ratio vs. matched random", fontsize=7.5, x=0.0, ha="left")
+    # 범례 7pt: 한 줄(ncol=4)로는 3.5in을 넘으므로 두 줄. 주석 7pt도 두 줄로 나눈다.
+    # 범례 → 그 위에 주석 → 그 위에 축, 순서로 실측 높이를 재어 쌓는다.
     h, lab = axes[0].get_legend_handles_labels()
-    fig.legend(h, lab, loc="lower center", ncol=4, frameon=False, fontsize=5.6, bbox_to_anchor=(0.5, 0.0),
-               handlelength=1.6, columnspacing=0.9)
-    fig.text(0.5, 0.055, "filled = significant (Holm); ▲ top: random lost nothing; ▼ bottom: targeted lost nothing",
-             ha="center", fontsize=5.2, color="#57606A")
-    fig.tight_layout(rect=(0, 0.085, 1, 1), pad=0.3)
+    leg = fig.legend(h, lab, loc="lower center", ncol=2, frameon=False, fontsize=7.0, bbox_to_anchor=(0.5, 0.0),
+                     handlelength=1.6, columnspacing=1.5, labelspacing=0.25, borderpad=0, borderaxespad=0.3)
+    fig.canvas.draw()
+    leg_top = leg.get_window_extent(fig.canvas.get_renderer()).y1 / fig.bbox.height
+    note = fig.text(0.5, leg_top + 0.01,
+                    "filled = significant (Holm)\n▲ top: random lost nothing; ▼ bottom: targeted lost nothing",
+                    ha="center", va="bottom", fontsize=7.0, color="#57606A", linespacing=1.3)
+    fig.canvas.draw()
+    note_top = note.get_window_extent(fig.canvas.get_renderer()).y1 / fig.bbox.height
+    ylab_right = ylab.get_window_extent(fig.canvas.get_renderer()).x1 / fig.bbox.width
+    fig.tight_layout(rect=(ylab_right + 0.005, note_top + 0.01, 1, 1), pad=0.3)
+    # 공유 y축 이름을 두 패널의 세로 중앙에 맞춘다
+    ylab.set_y((axes[0].get_position().y1 + axes[1].get_position().y0) / 2)
 
     fig.canvas.draw()
     rnd = fig.canvas.get_renderer()
@@ -99,6 +110,16 @@ def main():
             probs.append(f"outside: {tx.get_text()[:30]}")
         if bb.overlaps(leg):
             probs.append("note overlaps legend")
+    if leg.x0 < fb.x0 - 1 or leg.x1 > fb.x1 + 1 or leg.y0 < fb.y0 - 1:
+        probs.append("legend outside figure")
+    yb = ylab.get_window_extent(rnd)
+    if yb.x0 < fb.x0 - 1 or yb.y0 < fb.y0 - 1 or yb.y1 > fb.y1 + 1:
+        probs.append("shared y label outside figure")
+    for ax in axes:
+        for tk in ax.yaxis.get_major_ticks():
+            if tk.label1.get_visible() and tk.label1.get_window_extent(rnd).overlaps(yb):
+                probs.append("shared y label overlaps y tick labels")
+                break
     if probs:
         raise SystemExit("LAYOUT CHECK FAILED:\n  " + "\n  ".join(probs))
     out = ROOT / "04_results" / "figures" / "fig_rq2_curves"

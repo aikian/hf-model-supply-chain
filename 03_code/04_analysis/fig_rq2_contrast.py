@@ -28,7 +28,7 @@ STRAT = [("descendants", "descendants", "#2a78d6", "o"), ("descendant_authors", 
          ("downloads", "downloads", "#1baf7a", "^"), ("outdegree", "out-degree", "#eda100", "D")]
 INK, MUTED, GRID = "#0b0b0b", "#52514e", "#e6e5e1"
 FLOOR = 0.002                       # 손실 0 을 그릴 높이 (% of options)
-plt.rcParams.update({"font.family": "DejaVu Sans", "font.size": 6.4})
+plt.rcParams.update({"font.family": "DejaVu Sans", "font.size": 7.0})
 
 
 def main():
@@ -45,7 +45,7 @@ def main():
         ax.plot(xs, xs * f, color=MUTED if f == 1 else "#b9b8b2", lw=0.8 if f == 1 else 0.6,
                 ls="-" if f == 1 else (0, (2, 2)), zorder=1)
     ax.axhspan(FLOOR / 1.8, FLOOR * 1.8, color="#f0efec", zorder=0)
-    ax.text(55, FLOOR, "no option lost", va="center", ha="right", fontsize=5.4, color=MUTED)
+    ax.text(55, FLOOR, "no option lost", va="center", ha="right", fontsize=6.5, color=MUTED)
 
     for sem, filled in [("legal", True), ("availability", False)]:
         g = d[d["semantics"] == sem]
@@ -72,10 +72,10 @@ def main():
     def label_line(x, f, text, dy=1.7):
         p1 = ax.transData.transform((x, x * f)); p2 = ax.transData.transform((x * 2, x * 2 * f))
         ang = np.degrees(np.arctan2(p2[1] - p1[1], p2[0] - p1[0]))
-        ax.text(x, x * f * dy, text, rotation=ang, rotation_mode="anchor", fontsize=5.5, color=MUTED, zorder=5)
-    label_line(4e-3, 1, "option loss = model loss")
-    label_line(12, 1e-2, "1/100")
-    label_line(12, 1e-3, "1/1,000")
+        ax.text(x, x * f * dy, text, rotation=ang, rotation_mode="anchor", fontsize=6.5, color=MUTED, zorder=5)
+    label_line(4e-3, 1, "option loss = provider loss")
+    label_line(30, 1e-2, "1/100")
+    label_line(30, 1e-3, "1/1,000")
     ax.set_xlabel("Providers unavailable after propagation (% of T1-main)", color=INK)
     ax.set_ylabel("Options with no provider left (% of all options)", color=INK)
     ax.grid(color=GRID, lw=0.4, which="major")
@@ -89,9 +89,9 @@ def main():
     handles += [Line2D([0], [0], marker="o", ls="", mfc=MUTED, mec=MUTED, ms=4.2, label="filled: legal shock"),
                 Line2D([0], [0], marker="o", ls="", mfc="white", mec=MUTED, ms=4.2, label="hollow: availability"),
                 Line2D([0], [0], color=INK, lw=0.7, ls=(0, (3, 1.5)), marker="o", ms=2.6, label="greedy (reference)"),
-                Line2D([0], [0], color="#cfcec9", lw=1.4, label="matched random, 5-95% range")]
-    fig.legend(handles=handles, loc="lower center", ncol=3, frameon=False, fontsize=5.3, bbox_to_anchor=(0.5, 0.0),
-               handletextpad=0.3, columnspacing=0.8)
+                Line2D([0], [0], color="#cfcec9", lw=1.4, label="matched random, 5–95%")]
+    fig.legend(handles=handles, loc="lower center", ncol=3, frameon=False, fontsize=6.0, bbox_to_anchor=(0.5, 0.0),
+               handletextpad=0.25, columnspacing=0.6, handlelength=1.5)
     fig.tight_layout(rect=(0, 0.16, 1, 1), pad=0.3)
 
     fig.canvas.draw()
@@ -100,6 +100,8 @@ def main():
     probs = []
     if leg.overlaps(ax.get_window_extent(r)):
         probs.append("legend overlaps the axes")
+    if leg.x0 < fb.x0 - 1 or leg.x1 > fb.x1 + 1 or leg.y0 < fb.y0 - 1:
+        probs.append("legend outside the figure")
     for t in [ax.xaxis.label, ax.yaxis.label, *ax.texts]:
         bb = t.get_window_extent(r)
         if bb.x0 < fb.x0 - 1 or bb.x1 > fb.x1 + 1 or bb.y0 < fb.y0 - 1:
