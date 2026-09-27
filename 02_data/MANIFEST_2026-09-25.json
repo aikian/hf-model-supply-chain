@@ -1,5 +1,5 @@
 {
- "created": "2026-09-27T21:34:51",
+ "created": "2026-09-27T22:23:39",
  "snapshot": "2026-09-25",
  "files": {
   "02_data/raw/hf_models_2026-09-25.jsonl.gz": {
@@ -139,8 +139,8 @@
    "sha256": "ec6bff2bf22895208957725bb7ad08e27dca252c7b6518a5b0dd18fbf9035941"
   },
   "03_code/04_analysis/fig_rq2_contrast.py": {
-   "bytes": 5746,
-   "sha256": "6d89645e0c9690f76fffb66a9900938f758d14f68af2b93b5b06ac374f3c3d9d"
+   "bytes": 5860,
+   "sha256": "b1d6650bb84b3d151ce265aadded86087c3cf2eeed584f1bb8c668481f493f36"
   },
   "03_code/04_analysis/fig_rq2_curves.py": {
    "bytes": 5981,
@@ -163,8 +163,8 @@
    "sha256": "9067ff42806902811d902579445bc85fec0e42dad901604bb3db932b2332512c"
   },
   "03_code/04_analysis/make_supplement.py": {
-   "bytes": 9985,
-   "sha256": "697ecd33eb135eef60a28cc8f0a9aab10c64f76d9c6bf50282418d7083be22ec"
+   "bytes": 10414,
+   "sha256": "74519dfbf70abb78c32514efc19a2cd95b0fdd4fa8797e4a398844c767f0f97c"
   },
   "03_code/04_analysis/pilot_figures.py": {
    "bytes": 8781,

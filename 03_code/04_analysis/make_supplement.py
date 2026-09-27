@@ -52,8 +52,8 @@ def planned_table():
     for lab, v in [("T1-original", v1), ("T0", v0)]:
         h1 = v["H1"]
         h3 = ", ".join(f"{esc(c)} {r:.2f}" for c, r in v["H3"]["ratios_including_own_class"].items())
-        summary.append(f"{lab} & {100 * h1['share_single_lineage']:.1f}\\% [{100 * h1['ci95'][0]:.1f}, "
-                       f"{100 * h1['ci95'][1]:.1f}] & {v['H2a']['k_significant']}/5 & {v['H2b']['k_significant']}/5 & "
+        summary.append(f"{lab} & {100 * h1['share_single_lineage']:.2f}\\% [{100 * h1['ci95'][0]:.2f}, "
+                       f"{100 * h1['ci95'][1]:.2f}] & {v['H2a']['k_significant']}/5 & {v['H2b']['k_significant']}/5 & "
                        f"{'supported' if v['H3']['supported'] else 'not supported'} ({h3}) \\\\")
     return "\n".join(lines), "\n".join(summary)
 
@@ -153,8 +153,13 @@ def rq1_table():
 
 def license_table():
     lm = pd.read_csv(ROOT / "03_code" / "03_simulation" / "license_map.csv").fillna("")
-    return "\n".join(f"\\texttt{{{esc(r.license)}}} & {esc(r['class'])} & {esc(r.commercial)} \\\\"
-                     for _, r in lm.iterrows())
+    # 분석에서 쓰는 정의 (removal_sim.COMMERCIAL_CLASSES) 를 따른다. license_map.csv 의 commercial 열은
+    # 라이선스 원문의 허용 여부라서 no-derivatives 가 yes 로 되어 있다 — 분석 정의와 다르므로 쓰지 않는다.
+    import sys
+    sys.path.insert(0, str(ROOT / "03_code" / "03_simulation"))
+    from removal_sim import COMMERCIAL_CLASSES
+    return "\n".join(f"\\texttt{{{esc(r.license)}}} & {esc(r['class'])} & "
+                     f"{'yes' if r['class'] in COMMERCIAL_CLASSES else 'no'} \\\\" for _, r in lm.iterrows())
 
 
 def company_table():
@@ -180,9 +185,9 @@ def validation_table():
     out = [f"{names[r['stratum']]} & {r['n']} & {r['A_correct']} ({r['A_pct']}\\%, {r['A_ci95']}) & "
            f"{r['B_correct']} ({r['B_pct']}\\%, {r['B_ci95']}) \\\\" for r in v["by_stratum"]]
     ag = v["agreement"]
-    return "\n".join(out), (f"{ag['percent_agree']}\\% agreement on {ag['n_both_decidable']} models both labelers "
-                            f"could decide; Cohen's $\\kappa$ = {ag['kappa_binary']} (binary), "
-                            f"{ag['kappa_3cat_all']} (three categories, all 300)")
+    return "\n".join(out), (f"{ag['percent_agree']}\\% on the {ag['n_both_decidable']} models that both labelers "
+                            f"could decide; Cohen's $\\kappa$ = {ag['kappa_binary']} (binary) and "
+                            f"{ag['kappa_3cat_all']} (three categories, all 300).%")
 
 
 def main():

@@ -72,7 +72,7 @@ def main():
         ax.grid(color="#E5E7EB", lw=0.4)
         for sp in ["top"]:
             ax.spines[sp].set_visible(False)
-    axes[-1].set_xlabel("Models made unavailable (% of T1 models)")
+    axes[-1].set_xlabel("Models made unavailable (% of T1-main models)")
     handles = [Line2D([0], [0], marker=mk, ls="", mfc="white", mec=col, ms=4, label=lab) for _, lab, col, mk in STRAT]
     handles += [Line2D([0], [0], color="#9AA3AD", lw=0.9, marker="_", ms=6, label="size-matched random (mean, 5–95%)"),
                 Line2D([0], [0], color="#1F2328", lw=0.8, ls=(0, (3, 1.5)), marker=".", ms=3, label="greedy (reference)")]
