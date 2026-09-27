@@ -1,0 +1,39 @@
+{
+ "H1": {
+  "share_single_lineage": 0.2859579306424105,
+  "ci95": [
+   0.27824250791846017,
+   0.2938378136928449
+  ],
+  "n_options": 12313,
+  "supported": false
+ },
+ "H2a": {
+  "k_significant": 5,
+  "k_total": 5,
+  "supported": true,
+  "cliffs_delta_range": [
+   -0.005,
+   1.0
+  ]
+ },
+ "H2b": {
+  "k_significant": 4,
+  "k_total": 5,
+  "supported": true,
+  "cliffs_delta_range": [
+   0.36200000000000004,
+   1.0
+  ]
+ },
+ "H3": {
+  "ratios_including_own_class": {
+   "noncommercial": 1.275,
+   "no_derivatives": 0.0,
+   "vendor_custom": 3.745,
+   "responsible_ai": 2.42,
+   "copyleft": 25.649
+  },
+  "supported": true
+ }
+}

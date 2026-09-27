@@ -1,0 +1,23 @@
+{
+ "processed": "/content/drive/MyDrive/\ub17c\ubb38_AiModels/02_data/processed/2026-09-25",
+ "tier": "T1",
+ "sample": null,
+ "declared_only": false,
+ "no_inherit": false,
+ "no_license_overrides": false,
+ "option": "full",
+ "exclude_quantized": true,
+ "other_as_unknown": false,
+ "strict_commercial": false,
+ "keep_temporal_violations": false,
+ "out": "/content/drive/MyDrive/\ub17c\ubb38_AiModels/04_results/tables/2026-09-25_full_noquant",
+ "k": [
+  1,
+  5,
+  10,
+  50,
+  100
+ ],
+ "seeds": 500,
+ "estimate_runtime": false
+}

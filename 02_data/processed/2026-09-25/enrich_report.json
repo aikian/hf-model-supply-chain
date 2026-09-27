@@ -1,0 +1,25 @@
+{
+ "inherit_relations": [
+  "mirror",
+  "quantized"
+ ],
+ "eligible_edges": 226852,
+ "rounds": 4,
+ "license_overrides_applied": 246,
+ "models_with_override_license": 1379,
+ "missing_before": {
+  "task": 2034614,
+  "languages": 2639405,
+  "license": 1970312
+ },
+ "missing_after": {
+  "task": 1925368,
+  "languages": 2605911,
+  "license": 1933272
+ },
+ "filled": {
+  "task": 109246,
+  "languages": 33494,
+  "license": 37040
+ }
+}

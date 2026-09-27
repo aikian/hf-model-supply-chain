@@ -1,0 +1,16 @@
+{
+ "processed": "../02_data/processed/2026-09-25",
+ "tier": "T0",
+ "sample": null,
+ "declared_only": false,
+ "no_inherit": false,
+ "no_license_overrides": false,
+ "option": "strict",
+ "exclude_quantized": false,
+ "other_as_unknown": false,
+ "strict_commercial": false,
+ "keep_temporal_violations": false,
+ "drop_rule": [],
+ "out": "/content/drive/MyDrive/\ub17c\ubb38_AiModels/04_results/tables/2026-09-25_full_planned_T0",
+ "seeds": 1000
+}

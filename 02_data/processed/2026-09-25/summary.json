@@ -1,0 +1,124 @@
+{
+ "snapshot": "2026-09-25",
+ "n_models": 3094856,
+ "n_edges": 903939,
+ "n_self_loops_removed": 2044,
+ "n_parent_id_case_fixed": 2343,
+ "n_legacy_timestamp_models": 29579,
+ "n_dataset_edges": 372601,
+ "pct_models_with_parent": 28.13,
+ "pct_models_with_license": 36.34,
+ "pct_models_with_language": 14.72,
+ "pct_models_with_dataset": 7.56,
+ "relation_counts": {
+  "finetune": 341527,
+  "adapter": 332102,
+  "quantized": 181768,
+  "merge": 47662,
+  "unspecified": 880
+ },
+ "multi_parent_models": 17457,
+ "pct_edges_parent_in_snapshot": 98.11,
+ "pct_temporal_ok": 99.58,
+ "n_edges_time_unknown": 115921,
+ "top10_parents_by_children": {
+  "black-forest-labs/FLUX.1-dev": 43388,
+  "Qwen/Qwen1.5-0.5B": 32534,
+  "Qwen/Qwen1.5-1.8B": 30626,
+  "google/gemma-2b": 24035,
+  "distilbert/distilbert-base-uncased": 12960,
+  "stabilityai/stable-diffusion-xl-base-1.0": 10956,
+  "google/gemma-7b": 9586,
+  "Qwen/Qwen3-4B-Instruct-2507": 8280,
+  "lerobot/smolvla_base": 7981,
+  "google-bert/bert-base-uncased": 7151
+ },
+ "top10_licenses": [
+  [
+   "apache-2.0",
+   548122
+  ],
+  [
+   "mit",
+   198167
+  ],
+  [
+   "other",
+   118553
+  ],
+  [
+   "openrail",
+   41635
+  ],
+  [
+   "creativeml-openrail-m",
+   33082
+  ],
+  [
+   "cc-by-nc-4.0",
+   22274
+  ],
+  [
+   "openrail++",
+   17506
+  ],
+  [
+   "cc-by-4.0",
+   16742
+  ],
+  [
+   "gemma",
+   15668
+  ],
+  [
+   "unknown",
+   11342
+  ]
+ ],
+ "top10_pipeline_tags": [
+  [
+   "text-generation",
+   415377
+  ],
+  [
+   "text-classification",
+   122011
+  ],
+  [
+   "text-to-image",
+   110158
+  ],
+  [
+   "reinforcement-learning",
+   77182
+  ],
+  [
+   "image-text-to-text",
+   40364
+  ],
+  [
+   "automatic-speech-recognition",
+   36648
+  ],
+  [
+   "robotics",
+   33322
+  ],
+  [
+   "token-classification",
+   30603
+  ],
+  [
+   "image-classification",
+   29162
+  ],
+  [
+   "feature-extraction",
+   20864
+  ]
+ ],
+ "created_at_range": [
+  "2022-03-02 23:29:04+00:00",
+  "2026-09-25 13:47:38+00:00"
+ ]
+}

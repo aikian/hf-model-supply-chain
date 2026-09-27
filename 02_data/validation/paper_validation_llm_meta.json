@@ -1,0 +1,23 @@
+{
+  "labeler_model": "Claude Opus 5.5 (claude-opus-5-5, Anthropic)",
+  "date": "2026-09-26",
+  "n_labeled": 300,
+  "counts_by_label": {
+    "1": 175,
+    "0": 114,
+    "9": 11
+  },
+  "counts_by_type_among_label1": {
+    "A": 56,
+    "B": 71,
+    "C": 9,
+    "D": 39
+  },
+  "counts_by_confidence": {
+    "high": 187,
+    "medium": 74,
+    "low": 39
+  },
+  "evidence_sources": "Public Hugging Face API (/api/models/<id>, /api/models?author=<author>&limit=50), raw README.md, occasional public HF name search; fetched 2026-09-26.",
+  "note": "Labeling was blind to the cleaning rules, rule flags, strata, and author labels; only codebook.md and the model_id list were read. Input list had 300 rows (not 250). Empty repos (only .gitattributes / empty README) were labeled 9 unless the repo name or account pattern itself identified an artifact type (UUID/timestamp bulk accounts, 'test', tutorial default names, course task names), in which case 1."
+}

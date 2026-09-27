@@ -1,0 +1,84 @@
+license,class,commercial,derivatives,obligations,note
+apache-2.0,permissive,yes,yes,attribution+notice,
+mit,permissive,yes,yes,attribution,
+bsd,permissive,yes,yes,attribution,
+bsd-2-clause,permissive,yes,yes,attribution,
+bsd-3-clause,permissive,yes,yes,attribution,
+bsd-3-clause-clear,permissive,yes,yes,attribution,no patent grant
+afl-3.0,permissive,yes,yes,attribution,
+artistic-2.0,permissive,yes,yes,attribution,modified versions must be marked
+bsl-1.0,permissive,yes,yes,attribution,Boost
+cc-by-2.0,permissive,yes,yes,attribution,
+cc-by-2.5,permissive,yes,yes,attribution,
+cc-by-3.0,permissive,yes,yes,attribution,
+cc-by-4.0,permissive,yes,yes,attribution,
+cc0-1.0,permissive,yes,yes,none,public domain dedication
+pddl,permissive,yes,yes,none,public domain (data)
+unlicense,permissive,yes,yes,none,
+wtfpl,permissive,yes,yes,none,
+zlib,permissive,yes,yes,attribution,
+isc,permissive,yes,yes,attribution,
+ncsa,permissive,yes,yes,attribution,
+postgresql,permissive,yes,yes,attribution,
+ecl-2.0,permissive,yes,yes,attribution+notice,Apache-derived
+ms-pl,permissive,yes,yes,attribution,source redistribution under same license
+etalab-2.0,permissive,yes,yes,attribution,French open licence
+odc-by,permissive,yes,yes,attribution,data
+cdla-permissive-1.0,permissive,yes,yes,attribution,data
+cdla-permissive-2.0,permissive,yes,yes,attribution,data
+openmdw-1.0,permissive,yes,yes,attribution,open model license
+openmdw-1.1,permissive,yes,yes,attribution,open model license
+apple-ascl,permissive,yes,yes,attribution,Apple sample code license
+gpl,copyleft,yes,yes,share-alike,
+gpl-2.0,copyleft,yes,yes,share-alike,
+gpl-3.0,copyleft,yes,yes,share-alike,
+agpl-3.0,copyleft,yes,yes,share-alike+network,
+lgpl,copyleft,yes,yes,share-alike(weak),
+lgpl-2.1,copyleft,yes,yes,share-alike(weak),
+lgpl-3.0,copyleft,yes,yes,share-alike(weak),
+lgpl-lr,copyleft,yes,yes,share-alike(weak),
+mpl-2.0,copyleft,yes,yes,share-alike(file),
+epl-1.0,copyleft,yes,yes,share-alike(weak),
+epl-2.0,copyleft,yes,yes,share-alike(weak),
+eupl-1.1,copyleft,yes,yes,share-alike,
+eupl-1.2,copyleft,yes,yes,share-alike,
+osl-3.0,copyleft,yes,yes,share-alike+network,
+cc-by-sa-3.0,copyleft,yes,yes,share-alike,
+cc-by-sa-4.0,copyleft,yes,yes,share-alike,
+cdla-sharing-1.0,copyleft,yes,yes,share-alike,data
+odbl,copyleft,yes,yes,share-alike,data
+gfdl,copyleft,yes,yes,share-alike,documentation
+ofl-1.1,copyleft,yes,yes,share-alike,font
+openrail,responsible_ai,yes,yes,use-restrictions,RAIL
+openrail++,responsible_ai,yes,yes,use-restrictions,RAIL
+creativeml-openrail-m,responsible_ai,yes,yes,use-restrictions,Stable Diffusion
+bigscience-bloom-rail-1.0,responsible_ai,yes,yes,use-restrictions,
+bigscience-openrail-m,responsible_ai,yes,yes,use-restrictions,
+bigcode-openrail-m,responsible_ai,yes,yes,use-restrictions,
+llama2,vendor_custom,conditional,yes,aup+mau-threshold+attribution,700M MAU threshold
+llama3,vendor_custom,conditional,yes,aup+mau-threshold+naming,derivative names must start with Llama
+llama3.1,vendor_custom,conditional,yes,aup+mau-threshold+naming,
+llama3.2,vendor_custom,conditional,yes,aup+mau-threshold+naming,EU restriction on multimodal
+llama3.3,vendor_custom,conditional,yes,aup+mau-threshold+naming,
+llama4,vendor_custom,conditional,yes,aup+mau-threshold+naming,
+gemma,vendor_custom,conditional,yes,aup+pass-through,terms flow to derivatives
+grok2-community,vendor_custom,conditional,yes,aup,
+cc-by-nc-2.0,noncommercial,no,yes,attribution,
+cc-by-nc-3.0,noncommercial,no,yes,attribution,
+cc-by-nc-4.0,noncommercial,no,yes,attribution,
+cc-by-nc-sa-2.0,noncommercial,no,yes,share-alike,
+cc-by-nc-sa-3.0,noncommercial,no,yes,share-alike,
+cc-by-nc-sa-4.0,noncommercial,no,yes,share-alike,
+cc-by-nc-nd-3.0,noncommercial,no,no,attribution,no derivatives
+cc-by-nc-nd-4.0,noncommercial,no,no,attribution,no derivatives
+fair-noncommercial-research-license,noncommercial,no,yes,research-only,Meta FAIR
+intel-research,noncommercial,no,yes,research-only,
+h-research,noncommercial,no,yes,research-only,
+apple-amlr,noncommercial,no,yes,research-only,Apple ML Research
+deepfloyd-if-license,noncommercial,no,yes,research-only,
+cc-by-nd-4.0,no_derivatives,yes,no,attribution,derivatives not permitted
+c-uda,other,unknown,yes,computational-use,data agreement
+lppl-1.3c,other,unknown,yes,modification-conditions,
+cc,other,unknown,unknown,unknown,CC variant not specified
+other,other,unknown,unknown,unknown,custom license not in HF list
+unknown,unknown,unknown,unknown,unknown,declared as unknown

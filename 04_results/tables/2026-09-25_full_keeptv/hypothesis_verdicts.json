@@ -1,0 +1,33 @@
+{
+ "H1": {
+  "share_single_lineage": 0.005197758466661252,
+  "n_options": 12313,
+  "supported": false,
+  "sensitivity_isolated_excluded": {
+   "share_single_lineage": 0.018061309030654515,
+   "n_options": 12070,
+   "options_only_from_isolated_models": 243
+  },
+  "lower_bound_architecture_grouped": {
+   "share_single_lineage": 0.006334768131243401,
+   "n_options": 12313
+  }
+ },
+ "H2_availability": {
+  "k_significant": 0,
+  "k_total": 5,
+  "supported": false
+ },
+ "H2_legal": {
+  "k_significant": 0,
+  "k_total": 5,
+  "supported": false
+ },
+ "H3": {
+  "supported": false,
+  "ratios": {
+   "noncommercial": 0.021,
+   "vendor_custom": 0.01
+  }
+ }
+}

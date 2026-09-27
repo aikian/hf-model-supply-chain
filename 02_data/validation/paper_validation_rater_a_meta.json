@@ -1,0 +1,9 @@
+{
+ "file": "paper_validation_to_label.csv",
+ "rater": "OpenAI GPT-6 Astra, run in the Codex agent environment (notes are tagged 'AI(Codex)')",
+ "date": "2026-09-26",
+ "blind_to": ["cleaning rules", "rule flags / strata", "paper_validation_key.csv", "paper_validation_llm_labels.csv"],
+ "evidence": "public Hugging Face API, README, uploader model lists (see ai_review_20260926/)",
+ "author_review": "author reviewed all 300 labels while seeing them (not blind); 0 changes",
+ "not_human_annotation": true
+}

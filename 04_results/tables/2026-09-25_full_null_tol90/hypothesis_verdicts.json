@@ -1,0 +1,20 @@
+{
+ "tol90_availability": {
+  "k_significant": 0,
+  "supported": false,
+  "min_p": 0.11976047904191617,
+  "size_ratio_median_range": [
+   0.9943291607157859,
+   1.0
+  ]
+ },
+ "tol90_legal": {
+  "k_significant": 0,
+  "supported": false,
+  "min_p": 0.6167664670658682,
+  "size_ratio_median_range": [
+   0.9510027654297509,
+   1.0933188090050834
+  ]
+ }
+}

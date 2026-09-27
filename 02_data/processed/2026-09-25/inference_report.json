@@ -1,0 +1,82 @@
+{
+ "declared_edges": 902561,
+ "declared_edges_reconnected_by_name_resolution": 5820,
+ "inferred_edges": {
+  "inferred_name": 22962,
+  "inferred_quant": 14231,
+  "inferred_mirror": 11279
+ },
+ "inferred_temporal_violations": 34,
+ "models_gaining_parent": 48472,
+ "cycle_components": 12,
+ "edges_in_cycles": 29,
+ "total_edges": 951033,
+ "examples": {
+  "inferred_mirror": [
+   [
+    "EleutherAI/gpt-neo-2.7B",
+    "Branex/gpt-neo-2.7B"
+   ],
+   [
+    "distilbert/distilbert-base-uncased",
+    "CoachCarter/distilbert-base-uncased"
+   ],
+   [
+    "openai-community/gpt2-large",
+    "ComCom/gpt2-large"
+   ],
+   [
+    "openai-community/gpt2-medium",
+    "ComCom/gpt2-medium"
+   ],
+   [
+    "openai-community/gpt2",
+    "ComCom/gpt2"
+   ]
+  ],
+  "inferred_name": [
+   [
+    "Qwen/Qwen1.5-0.5B",
+    "RichardErkhov/Qwen_-_Qwen1.5-0.5B-gguf"
+   ],
+   [
+    "Qwen/Qwen1.5-1.8B",
+    "RichardErkhov/Qwen_-_Qwen1.5-1.8B-gguf"
+   ],
+   [
+    "Qwen/Qwen1.5-4B",
+    "RichardErkhov/Qwen_-_Qwen1.5-4B-gguf"
+   ],
+   [
+    "Qwen/Qwen1.5-0.5B-Chat",
+    "RichardErkhov/Qwen_-_Qwen1.5-0.5B-Chat-gguf"
+   ],
+   [
+    "Qwen/Qwen1.5-7B",
+    "RichardErkhov/Qwen_-_Qwen1.5-7B-gguf"
+   ]
+  ],
+  "inferred_quant": [
+   [
+    "Cedille/fr-boris",
+    "gustavecortal/fr-boris-8bit"
+   ],
+   [
+    "Cedille/fr-boris",
+    "tog/fr-boris-8bit"
+   ],
+   [
+    "Alireza1044/albert-base-v2-sst2",
+    "INC4AI/albert-base-v2-sst2-int8-static-inc"
+   ],
+   [
+    "north/fine_North_large",
+    "north/fine_North_large_8bit"
+   ],
+   [
+    "north/fine_North_base",
+    "pere/fine_North_base_8bit"
+   ]
+  ]
+ }
+}

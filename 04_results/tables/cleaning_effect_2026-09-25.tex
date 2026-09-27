@@ -1,0 +1,21 @@
+\begin{table}[t]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{2pt}
+\caption{Parents with the most direct children before (T0) and after (T1-original) cleaning, with ranks in parentheses. Several apparent hubs are artifacts of automated reward-scheme uploads. Organization prefixes are omitted.}
+\label{tab:cleaning}
+\begin{tabular}{lrrr}
+\toprule
+Parent model & T0 (rank) & T1-orig. (rank) & Removed \\
+\midrule
+\texttt{FLUX.1-dev} & 43,427 (1) & 39,399 (1) & 9\% \\
+\texttt{Qwen1.5-0.5B} & 32,545 (2) & 281 (301) & 99\% \\
+\texttt{Qwen1.5-1.8B} & 30,630 (3) & 263 (318) & 99\% \\
+\texttt{gemma-2b} & 24,037 (4) & 950 (99) & 96\% \\
+\texttt{distilbert-base-uncased} & 13,082 (5) & 6,428 (6) & 51\% \\
+\texttt{stable-diffusion-xl-base} & 11,067 (6) & 10,152 (2) & 8\% \\
+\texttt{gemma-7b} & 9,609 (7) & 611 (146) & 94\% \\
+\texttt{Qwen3-4B-Instruct-2507} & 8,318 (8) & 7,592 (3) & 9\% \\
+\bottomrule
+\end{tabular}
+\end{table}

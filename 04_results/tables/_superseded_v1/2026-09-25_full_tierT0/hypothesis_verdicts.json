@@ -1,0 +1,23 @@
+{
+ "H1": {
+  "share_single_lineage": 0.28635851183765504,
+  "ci95": [
+   0.2783862135609599,
+   0.29416975358350783
+  ],
+  "supported": false
+ },
+ "H2a": {
+  "k_significant": 5,
+  "k_total": 5,
+  "supported": true
+ },
+ "H2b": {
+  "k_significant": 5,
+  "k_total": 5,
+  "supported": true
+ },
+ "H3": {
+  "supported": true
+ }
+}

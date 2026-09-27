@@ -1,0 +1,24 @@
+{
+ "processed": "G:\\\ub0b4 \ub4dc\ub77c\uc774\ube0c\\\ub17c\ubb38_AiModels\\02_data\\processed\\2026-09-25",
+ "tier": "T1",
+ "sample": null,
+ "declared_only": true,
+ "no_inherit": true,
+ "no_license_overrides": false,
+ "option": "full",
+ "exclude_quantized": false,
+ "other_as_unknown": false,
+ "strict_commercial": false,
+ "keep_temporal_violations": false,
+ "drop_rule": [],
+ "out": "G:\\\ub0b4 \ub4dc\ub77c\uc774\ube0c\\\ub17c\ubb38_AiModels\\04_results\\tables\\2026-09-25_full_declared",
+ "k": [
+  1,
+  5,
+  10,
+  50,
+  100
+ ],
+ "seeds": 500,
+ "estimate_runtime": false
+}
