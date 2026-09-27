@@ -147,7 +147,9 @@ def rq1_table():
         rows.append((lab, *sh(pd.read_csv(d(name) / "substitutability.csv"))))
     sm = TAB / f"{S}_subst_T1main_strict" / "substitutability.csv"
     if sm.exists():
-        rows.append(("Strict language (T1-main)", *sh(pd.read_csv(sm))))
+        st = pd.read_csv(sm)
+        rows.append(("Strict language (T1-main)", *sh(st)))
+        rows.append(("Strict language, untagged models excluded (T1-main)", *sh(st[st.option.str.split("|").str[1] != "unk"])))
     return "\n".join(f"{a} & {b:.2f}\\% & {c:,} \\\\" for a, b, c in rows)
 
 
