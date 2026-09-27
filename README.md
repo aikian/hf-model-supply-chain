@@ -4,7 +4,9 @@ Code and derived results for a study of counterfactual upstream-model removal on
 lineage graph (snapshot **2026-09-25**, 3,094,856 models, 951,033 lineage edges).
 
 > The raw snapshot (~184 MB) and processed graph tables exceed GitHub's file
-> limit and will be archived on Zenodo with a DOI. Their SHA-256 hashes are in `02_data/MANIFEST_2026-09-25.json`.
+> limit and are archived as a Zenodo dataset: [10.5281/zenodo.22998359](https://doi.org/10.5281/zenodo.22998359).
+> This code is archived on Zenodo under [10.5281/zenodo.22997474](https://doi.org/10.5281/zenodo.22997474) (all versions).
+> SHA-256 hashes of the data files are in `02_data/MANIFEST_2026-09-25.json`.
 
 ## Layout
 | Path | Content |
