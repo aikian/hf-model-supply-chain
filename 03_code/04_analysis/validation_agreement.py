@@ -1,13 +1,13 @@
-"""정제 규칙 검증: 판정자 간 일치도와 층(stratum)별 규칙 정확도.
+"""Cleaning-rule validation: inter-rater agreement and per-stratum rule accuracy.
 
-입력 (02_data/validation/)
-    paper_validation_to_label.csv    판정자 A (2026-09-26: AI(Codex) — 사람 판정 아님)
-    paper_validation_llm_labels.csv  판정자 B (Claude Opus 5.5)
-    paper_validation_key.csv         모델별 층 (kept_T1 / f_bot / f_course / f_boilerplate / f_test)
-라벨: 0 실제 공급원, 1 산출물, 9 판단 불가 (정확도 계산에서 제외)
-층별 정확도: 걸린 층은 라벨 1 비율(정밀도), kept_T1 은 라벨 0 비율.
+Input (02_data/validation/)
+    paper_validation_to_label.csv    rater A (2026-09-26: AI (Codex), not a human rater)
+    paper_validation_llm_labels.csv  rater B (Claude Opus 5.5)
+    paper_validation_key.csv         stratum per model (kept_T1 / f_bot / f_course / f_boilerplate / f_test)
+Labels: 0 genuine provider, 1 artifact, 9 undecidable (excluded from accuracy)
+Per-stratum accuracy: flagged strata use the share of label 1 (precision); kept_T1 uses the share of label 0.
 
-사용: python validation_agreement.py
+Usage: python validation_agreement.py
 """
 import json
 from pathlib import Path

@@ -1,7 +1,7 @@
-"""Colab 분담분 (2026-09-27 심사 대응): 대조군 기준 민감도 tol90, tol99 를 동시에 돌린다.
+"""Colab share of the 2026-09-27 review response: run the matched-null criterion sensitivities tol90 and tol99 at the same time.
 
-Colab 칸에서:  !python colab_jobs.py
-끊겨도 다시 실행하면 저장된 단계부터 이어서 계산한다. 진행은 칸 출력과 드라이브 로그에 한 줄씩 남는다.
+In a Colab cell:  !python colab_jobs.py
+If the session drops, rerun and it resumes from the saved step. Progress goes line by line to the cell output and the Drive log.
 """
 import subprocess
 import sys

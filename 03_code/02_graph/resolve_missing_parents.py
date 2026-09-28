@@ -1,17 +1,17 @@
-"""스냅샷에 없는 '선언된 부모'가 실제로 삭제된 것인지 분류하고, 이름이 바뀐 경우 실제 ID 로 잇는다.
+"""Classify 'declared parents' missing from the snapshot as truly deleted or not, and link renamed ones to their real IDs.
 
-분류
-    renamed   : HF API 가 200 을 돌려주고 id 가 다름 (저장소 이름 변경·조직 이전 → HF 가 옛 이름을 새 이름으로 연결)
-    alias     : 조직 없는 옛 ID (예: roberta-base) 가 API 에서 조직 포함 ID 로 연결됨 (renamed 의 한 경우)
-    local_path: 올린 사람의 로컬 경로 (/cache/models/Org--Name, models--Org--Name) → Org/Name 으로 해석, 스냅샷에 있으면 연결
-    same      : API 가 같은 id 로 200 (스냅샷 이후 생성·공개 전환 등) → 스냅샷 시점에는 없던 것으로 둔다
-    unavailable: 401/403/404 → 삭제 또는 비공개. HF 는 비공개와 없음을 구분해 주지 않는다
+Classes
+    renamed   : HF API returns 200 with a different id (repo renamed or moved to another org -> HF redirects the old name)
+    alias     : an old ID without an org (e.g. roberta-base) that the API maps to an org-qualified ID (a case of renamed)
+    local_path: the uploader's local path (/cache/models/Org--Name, models--Org--Name) -> parsed as Org/Name; linked if in the snapshot
+    same      : API returns 200 with the same id (created or made public after the snapshot) -> treated as absent at snapshot time
+    unavailable: 401/403/404 -> deleted or private. HF does not distinguish private from nonexistent
 
-입력  edges_all.parquet, nodes.parquet
-출력  02_data/processed/<snap>/missing_parents_resolved.csv
-      02_data/raw/missing_parents_api_<snap>.jsonl (API 응답 기록)
+Input   edges_all.parquet, nodes.parquet
+Output  02_data/processed/<snap>/missing_parents_resolved.csv
+        02_data/raw/missing_parents_api_<snap>.jsonl (API response log)
 
-사용
+Usage
     python resolve_missing_parents.py ../../02_data/processed/2026-09-25 --min-children 5
 """
 import argparse

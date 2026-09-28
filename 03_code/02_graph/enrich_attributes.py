@@ -1,16 +1,16 @@
-"""속성 상속: 양자화·미러 모델의 빈 태스크/언어/라이선스를 부모 값으로 채운다.
+"""Attribute inheritance: fill the empty task/language/license of quantized and mirror models from the parent.
 
-근거: 양자화 모델과 미러는 부모와 가중치가 같아 기능(태스크, 언어)이 같고,
-      라이선스상으로도 부모 라이선스의 적용을 받는다.
-      파인튜닝·어댑터·병합은 기능이나 라이선스가 바뀔 수 있으므로 상속하지 않는다.
-규칙: 자식 값이 **비어 있을 때만** 채운다 (선언값은 덮어쓰지 않는다).
-      양자화의 양자화, 미러의 양자화처럼 여러 단계면 반복해서 전파한다.
+Rationale: quantized models and mirrors share the parent's weights, so their function (task, language) is the same,
+      and the parent's license applies to them as well.
+      Fine-tunes, adapters and merges may change function or license, so they do not inherit.
+Rule: fill only when the child's value is **empty** (declared values are never overwritten).
+      Multi-step chains (quantization of a quantization, quantization of a mirror) are handled by iterating.
 
-입력  nodes.parquet, edges_all.parquet
-출력  attributes.parquet   model_id, task, languages, license (상속 반영) + inherited_* 표시
+Input   nodes.parquet, edges_all.parquet
+Output  attributes.parquet   model_id, task, languages, license (with inheritance) + inherited_* markers
       enrich_report.json
 
-사용
+Usage
     python enrich_attributes.py ../../02_data/processed/2026-09-25
 """
 import argparse
@@ -33,7 +33,7 @@ def main():
     e = pd.read_parquet(args.processed / "edges_all.parquet",
                         columns=["parent_id", "child_id", "relation", "parent_in_snapshot", "in_cycle"])
     e = e[e["relation"].isin(INHERIT_RELATIONS) & e["parent_in_snapshot"] & ~e["in_cycle"]]
-    # 부모가 여럿인 양자화/미러는 모호 → 상속하지 않음
+    # a quantized/mirror model with several parents is ambiguous -> no inheritance
     e = e[~e["child_id"].duplicated(keep=False)]
 
     base = n.rename(columns={v: k for k, v in FIELDS.items()}).set_index("model_id")
@@ -59,9 +59,9 @@ def main():
                 break
         return a, rounds
 
-    # 라이선스 재분류 (license_overrides.csv, fetch_license_names.py로 모델 카드의 license_name 확인):
-    # 'other' 로 태그된 큰 루트의 실제 라이선스 계열. "override:<class>" 로 표기해 license_class()가 그대로 읽는다.
-    # 상속보다 먼저 적용하므로, 라이선스가 비어 부모 값을 받던 양자화·미러도 바로잡힌 값을 받는다.
+    # License reclassification (license_overrides.csv; model-card license_name checked with fetch_license_names.py):
+    # the real license class of large roots tagged 'other'. Written as "override:<class>" so license_class() reads it directly.
+    # Applied before inheritance, so quantized/mirror models with an empty license inherit the corrected value.
     ov_path = Path(__file__).resolve().parents[1] / "03_simulation" / "license_overrides.csv"
     a_raw, _ = inherit(base)
     b = base.copy()

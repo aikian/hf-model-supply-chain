@@ -1,5 +1,5 @@
-"""정제 규칙과 추론 규칙의 정규식 단위 테스트.  python test_rules.py
-예시는 2026-09-25 스냅샷에서 실제로 관찰한 이름이다."""
+"""Regex unit tests for the cleaning and inference rules.  python test_rules.py
+The examples are names actually observed in the 2026-09-25 snapshot."""
 import re
 
 from clean_models import BOT_PATTERNS, COURSE_PATTERN, TEST_PATTERN
@@ -35,7 +35,7 @@ def test_course_and_test():
     for nm in ["test", "Test_2", "test.2", "my-model-tmp", "debug-run"]:
         assert hit(TEST_PATTERN, nm), nm
     for nm in ["attestation-model", "contest-winner", "latest-llama", "vit-bach-demo"]:
-        assert not hit(TEST_PATTERN, nm), nm       # demo는 의도적으로 제외
+        assert not hit(TEST_PATTERN, nm), nm       # demo is left out on purpose
 
 
 def test_quant_suffix():
@@ -45,7 +45,7 @@ def test_quant_suffix():
     assert strip("Qwen2.5-7B-Instruct-AWQ") == "Qwen2.5-7B-Instruct"
     assert strip("Hermes-3-Llama-3.1-70B-4bit") == "Hermes-3-Llama-3.1-70B"
     assert strip("gemma-4-26B-uncensored-mlx-q8") == "gemma-4-26B-uncensored"
-    assert strip("Llama-3.1-8B-Instruct") == "Llama-3.1-8B-Instruct"   # 접미사 없으면 그대로
+    assert strip("Llama-3.1-8B-Instruct") == "Llama-3.1-8B-Instruct"   # unchanged when there is no suffix
 
 
 if __name__ == "__main__":

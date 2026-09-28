@@ -1,11 +1,11 @@
-"""재현 저장소로 내보내기: 공개해도 되는 파일만 로컬 git 저장소로 복사한다.
+"""Export to the replication repository: copy only the files that may be published into a local git repository.
 
-Google Drive 폴더 안에 .git 을 두면 동기화 충돌로 저장소가 깨질 수 있어서 저장소는 로컬에 둔다.
-    python export_repo.py            # 기본 대상: C:\\Users\\donggyu\\repos\\hf-model-supply-chain
+A .git inside a Google Drive folder can be corrupted by sync conflicts, so the repository lives on the local disk.
+    python export_repo.py            # default target: C:\\Users\\donggyu\\repos\\hf-model-supply-chain
 
-포함: 코드, 규칙표, 결과 표·그림, 데이터 사전, 기준서, MANIFEST
-제외: 00_admin(개인 계획), 01_literature(논문 PDF 저작권), 원본·가공 데이터(100MB 초과 → Zenodo),
-      규칙 개발용 AI 판정 표본, 원고(투고 전), 캐시
+Included: code, rule tables, result tables and figures, data dictionary, codebook, MANIFEST
+Excluded: 00_admin (personal planning), 01_literature (copyrighted paper PDFs), raw and processed data (over 100 MB -> Zenodo),
+      AI-labeled samples used for rule development, manuscript (before submission), caches
 """
 import argparse
 import shutil
@@ -19,7 +19,7 @@ INCLUDE = [
     "02_data/data_dictionary.md",
     "02_data/MANIFEST_2026-09-25.json",
     "02_data/validation/codebook.md",
-    # 판정 절차 (원고: "The codebook and both labeling protocols are in the replication package")
+    # labeling protocols (manuscript: "The codebook and both labeling protocols are in the replication package")
     "02_data/validation/ai_review_20260926/README.md",
     "02_data/validation/paper_validation_llm_meta.json",
     "02_data/validation/paper_validation_rater_a_meta.json",
@@ -31,13 +31,13 @@ INCLUDE = [
 EXCLUDE_PARTS = {"__pycache__", "_pilot_smoke_not_results", "_pages", "dev_rule_development"}
 EXCLUDE_SUFFIX = {".pyc", ".parquet", ".gz", ".log", ".pdfrender.png"}
 MAX_MB = 50
-# 개인 계정 가명화: 정제 보고서는 개인 계정의 모델을 '자동 업로드'·'테스트' 등의 예시로 든다.
-# 공개본에서는 예시 ID 의 계정을 해시 가명으로 바꾼다 (조직·회사 계정은 그대로).
+# Pseudonymize personal accounts: the cleaning report cites models of personal accounts as examples of 'automated upload', 'test', etc.
+# In the public copy the account part of each example ID is replaced by a hash alias (organization and company accounts unchanged).
 PSEUDONYMIZE = ["04_results/tables/cleaning_report_*.md"]
 ORG_ACCOUNTS = {"black-forest-labs", "Qwen", "google", "distilbert", "stabilityai", "lerobot", "google-bert",
                 "meta-llama", "mistralai", "microsoft", "openai", "deepseek-ai", "nvidia", "unsloth",
                 "runwayml", "stable-diffusion-v1-5", "facebook",
-                "gradients-io-tournaments"}                 # 대회 운영 조직의 봇 계정 (정제 규칙 BOT_AUTHORS 에 이미 공개)
+                "gradients-io-tournaments"}                 # bot account of a competition organizer (already public in the BOT_AUTHORS cleaning rule)
 
 
 def pseudonymize(text: str) -> str:
@@ -57,7 +57,7 @@ def keep(f: Path) -> bool:
     rel = f.relative_to(ROOT)
     if EXCLUDE_PARTS & set(rel.parts):
         return False
-    if any(p.startswith("_partial_s") for p in rel.parts):     # 이어서 계산용 중간 저장 (결과 CSV 와 중복)
+    if any(p.startswith("_partial_s") for p in rel.parts):     # intermediate checkpoints for resuming (redundant with the result CSVs)
         return False
     if f.suffix in EXCLUDE_SUFFIX or f.name.endswith("_pdfrender.png") or f.name == ".gitkeep":
         return False

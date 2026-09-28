@@ -1,4 +1,4 @@
-"""합성 그래프로 removal_sim 검증.  python -m pytest 03_simulation -q  또는  python test_removal_sim.py"""
+"""Tests for removal_sim on synthetic graphs.  python -m pytest 03_simulation -q  or  python test_removal_sim.py"""
 import numpy as np
 import pandas as pd
 
@@ -6,7 +6,7 @@ from removal_sim import Ecosystem, license_class
 
 
 def _toy_frames():
-    #   A ─┬─ A1 ─ A11          B ── B1        C (고립)
+    #   A ─┬─ A1 ─ A11          B ── B1        C (isolated)
     #      └─ A2 ─┐
     #   B ────────┴─ M (merge: A2 + B)
     nodes = pd.DataFrame({
@@ -35,11 +35,11 @@ def test_license_class():
     assert license_class("llama3.1") == "vendor_custom"
     assert license_class("openrail++") == "responsible_ai"
     assert license_class(None) == "unknown"
-    assert license_class("other") == "other"             # 자체 라이선스는 회사 라이선스와 구분
+    assert license_class("other") == "other"             # custom licenses are kept apart from vendor licenses
     assert license_class("cc-by-nd-4.0") == "no_derivatives"
     assert license_class("apple-amlr") == "noncommercial"
     assert license_class("ncsa") == "permissive"
-    assert license_class("some-new-nc-license") == "noncommercial"   # 표에 없으면 규칙식
+    assert license_class("some-new-nc-license") == "noncommercial"   # not in the table -> regex rules
     assert license_class("override:noncommercial") == "noncommercial"
 
 
@@ -47,7 +47,7 @@ def test_closure_merge_contagion():
     eco = toy()
     i = {m: k for k, m in enumerate(eco.ids)}
     removed = eco.closure([i["B"]])
-    assert set(eco.ids[removed]) == {"B", "B1", "M"}      # 병합 모델 M은 B 제거로 오염
+    assert set(eco.ids[removed]) == {"B", "B1", "M"}      # merge model M is contaminated by removing B
     removed = eco.closure([i["A"]])
     assert set(eco.ids[removed]) == {"A", "A1", "A11", "A2", "M"}
 
@@ -58,10 +58,10 @@ def test_loss():
     none = eco.loss(np.zeros(eco.n, dtype=bool))
     assert none["options_lost"] == 0
     r = eco.loss(eco.closure([i["B"]]))
-    # B 계열에만 있던 옵션: tg|en|vendor_custom(B), asr|en|permissive(B1). M의 tg|ko|permissive는 A11(tc) 아님 → 손실
+    # options only in the B lineage: tg|en|vendor_custom(B), asr|en|permissive(B1). M's tg|ko|permissive is not covered by A11(tc) -> lost
     lost = {"tg|en|vendor_custom", "asr|en|permissive", "tg|ko|permissive"}
     assert r["options_lost"] == len(lost)
-    # tg|en|permissive는 A1, C가 대체 → 손실 아님
+    # tg|en|permissive is substituted by A1 and C -> not lost
     assert r["models_lost"] == 3
 
 
@@ -69,16 +69,16 @@ def test_loss():
 
 def test_descendant_authors():
     nodes, edges = _toy_frames()
-    nodes["author"] = ["a", "a", "x", "y", "b", "b", "z", "c"]     # A 계열 후손: A1(a) A11(x) A2(y) M(z)
+    nodes["author"] = ["a", "a", "x", "y", "b", "b", "z", "c"]     # descendants of A: A1(a) A11(x) A2(y) M(z)
     eco = Ecosystem(nodes, edges)
     i = {m: k for k, m in enumerate(eco.ids)}
     nm, na = eco.descendants_count([i["A"], i["B"]])
     assert list(nm) == [4, 2]
-    assert list(na) == [3, 1]          # A: x,y,z (자기 계정 a 제외) / B: z (B1은 같은 계정 b)
+    assert list(na) == [3, 1]          # A: x,y,z (own account a excluded) / B: z (B1 is the same account b)
 
 
 def test_provider_descendants_and_collateral():
-    # 제공자가 아닌 후손은 표적 순위에 세지 않는다
+    # non-provider descendants do not count toward target ranking
     nodes, edges = _toy_frames()
     nodes["author"] = ["a", "a", "x", "y", "b", "b", "z", "c"]
     base = Ecosystem(nodes, edges)
@@ -86,28 +86,28 @@ def test_provider_descendants_and_collateral():
     prov = np.ones(base.n, dtype=bool); prov[[i["A1"], i["A11"]]] = False
     eco = Ecosystem(nodes, edges, provider=prov)
     nm, _ = eco.descendants_count([i["A"]])
-    assert list(nm) == [2]                                   # A2, M 만 (A1, A11 제외)
-    # 부수 피해: 비상업(A2) 제거 시 비상업 옵션 자신은 부수 피해에서 제외
+    assert list(nm) == [2]                                   # A2 and M only (A1, A11 excluded)
+    # collateral: when the noncommercial model A2 is removed, the noncommercial option itself is excluded from collateral
     r = base.loss(base.closure([i["A2"]]), removed_class="noncommercial")
-    # 사라진 옵션: tg|en|noncommercial(A2 자신), tg|ko|permissive(M) → 부수 피해는 M 쪽 1개
+    # lost options: tg|en|noncommercial (A2 itself), tg|ko|permissive (M) -> collateral is the single M-side option
     assert r["options_lost"] == 2
     other = base.option_class != "noncommercial"
     assert abs(r["pct_collateral_options_lost"] - 100 * 1 / other.sum()) < 1e-9
 
 
 def test_provider_mask():
-    # A2(비상업)를 제공자에서 빼도 그래프에는 남아 M으로 전파된다
+    # A2 (noncommercial) removed from providers still stays in the graph and propagates to M
     base = toy()
     i = {m: k for k, m in enumerate(base.ids)}
     prov = np.ones(base.n, dtype=bool); prov[i["A2"]] = False
     eco = Ecosystem(*_toy_frames(), provider=prov)
-    assert "tg|en|noncommercial" not in set(eco.option_names)     # A2의 옵션은 세지 않음
-    assert set(eco.ids[eco.closure([i["A"]])]) >= {"A2", "M"}      # 전파 경로는 유지
+    assert "tg|en|noncommercial" not in set(eco.option_names)     # A2's option is not counted
+    assert set(eco.ids[eco.closure([i["A"]])]) >= {"A2", "M"}      # propagation path is kept
 
 
 def _v2_frames():
     #  B ─adapter→ L1 ─adapter→ L2        B ─finetune→ F        B ─mirror→ Bm
-    #  D ─adapter→ L3   (D 는 미러 없음)
+    #  D ─adapter→ L3   (D has no mirror)
     nodes = pd.DataFrame({
         "model_id": ["B", "L1", "L2", "F", "Bm", "D", "L3", "U"],
         "pipeline_tag": ["tg"] * 8,
@@ -126,26 +126,26 @@ def _v2_frames():
 def test_availability_semantics_and_mirror():
     eco = Ecosystem(*_v2_frames())
     i = {m: k for k, m in enumerate(eco.ids)}
-    # 법적 충격: 모든 후손
+    # legal shock: all descendants
     assert set(eco.ids[eco.closure([i["B"]], "legal")]) == {"B", "L1", "L2", "F", "Bm"}
-    # 가용성 충격: B 에 미러 Bm 이 남아 있으므로 어댑터도 살아남는다 → B 만
+    # availability shock: mirror Bm of B survives, so the adapters survive too -> B only
     assert set(eco.ids[eco.closure([i["B"]], "availability")]) == {"B"}
-    # 미러까지 지우면 어댑터 사슬이 끊긴다 (파인튜닝 F 는 가중치를 가지므로 생존)
+    # removing the mirror as well breaks the adapter chain (fine-tune F carries weights, so it survives)
     assert set(eco.ids[eco.closure([i["B"], i["Bm"]], "availability")]) == {"B", "Bm", "L1", "L2"}
-    # 미러 없는 D: 어댑터 L3 도 사용 불가
+    # D has no mirror: adapter L3 becomes unusable too
     assert set(eco.ids[eco.closure([i["D"]], "availability")]) == {"D", "L3"}
 
 
 def test_language_wildcard():
     nodes, edges = _v2_frames()
-    eco = Ecosystem(nodes, edges)                      # option_def="full" (와일드카드)
+    eco = Ecosystem(nodes, edges)                      # option_def="full" (wildcard)
     i = {m: k for k, m in enumerate(eco.ids)}
-    # ko 옵션 제공자는 D, L3. 언어 없는 U 가 ko 를 대체 → D, L3 를 지워도 ko 옵션 유지
+    # ko option providers are D and L3. Untagged U substitutes for ko -> the ko option survives removing D and L3
     r = eco.loss(eco.closure([i["D"]], "legal"))
     assert r["options_lost"] == 0
     strict = Ecosystem(nodes, edges, option_def="strict")
-    assert strict.loss(strict.closure([i["D"]], "legal"))["options_lost"] == 1   # v1 방식이면 ko 옵션 손실
-    # U 까지 지우면 ko 손실, unk 옵션은 en 제공자가 남아 있으므로 유지
+    assert strict.loss(strict.closure([i["D"]], "legal"))["options_lost"] == 1   # under the v1 method the ko option is lost
+    # removing U as well loses ko; the unk option survives because en providers remain
     m = eco.closure([i["D"]], "legal"); m[i["U"]] = True
     assert eco.loss(m)["options_lost"] == 1
 
@@ -164,14 +164,14 @@ def test_degradation():
     eco = toy()
     i = {m: k for k, m in enumerate(eco.ids)}
     o = list(eco.option_names).index("tg|en|permissive")
-    assert eco.best_before[o] == 100                       # A(100), A1(10), C(7) 중 최선 = A
-    m = eco.closure([i["A"]], "legal")                     # A, A1, A11, A2, M 제거 → C(7)만 남음
+    assert eco.best_before[o] == 100                       # best of A(100), A1(10), C(7) = A
+    m = eco.closure([i["A"]], "legal")                     # removes A, A1, A11, A2, M -> only C(7) remains
     d = eco.degradation(m)
-    # 옵션별 비율을 직접 계산해 비교
+    # compare against per-option ratios computed directly
     none = eco.degradation(np.zeros(eco.n, bool))
     assert none["pct_options_degraded90"] == 0 and abs(none["demand_weighted_degradation"]) < 1e-12
     assert d["pct_options_degraded90"] > 0
-    # tg|en|permissive 는 100 → 7 (7%) 로 '크게 약해짐'에 포함되어야 한다
+    # tg|en|permissive goes 100 -> 7 (7%), so it must count as 'degraded by 90% or more'
     rem_sorted = m[eco.pair_model[eco._sorted_pair]]
     s, e = eco._opt_start[o], (eco._opt_start[o + 1] if o + 1 < eco.n_options else len(rem_sorted))
     left = eco._sorted_dl[s:e][~rem_sorted[s:e]]

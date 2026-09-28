@@ -1,7 +1,7 @@
-"""재현 패키지용 SHA-256 목록: 원본 스냅샷, 가공 데이터, 코드 전체.
+"""SHA-256 manifest for the replication package: raw snapshot, processed data, all code.
 
-출력: 02_data/MANIFEST_2026-09-25.json  (파일별 bytes, sha256)
-사용: python make_manifest.py
+Output: 02_data/MANIFEST_2026-09-25.json  (bytes and sha256 per file)
+Usage: python make_manifest.py
 """
 import datetime as dt
 import hashlib

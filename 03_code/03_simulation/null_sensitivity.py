@@ -1,14 +1,14 @@
-"""규모 맞춤 대조군의 기준 민감도 (심사 대응: 95% 기준은 임의적이다).
+"""Sensitivity of the size-matched null to its matching threshold (review response: the 95% threshold is arbitrary).
 
-주 분석(T1-main: test 규칙 끔, 언어 와일드카드)과 같은 설정에서, 대조군을 세 방식으로 다시 뽑는다.
-  tol90    제거 제공자 수가 표적의 90% 이상이 될 때까지 무작위 후보 추가
-  tol99    99% 이상
-  nearest  표적 수에 가장 가까운 지점에서 멈춤 (넘기 직전과 직후 중 더 가까운 쪽)
-각 방식마다 H2 검정(충격별 Holm 20개)을 다시 하고, 대조군 크기 / 표적 크기 분포도 기록한다.
-단계마다 중간 저장 → 끊겨도 이어서 계산.
+Under the main-analysis setting (T1-main: test rule off, language wildcard), the null is redrawn in three ways.
+  tol90    add random candidates until removed providers reach at least 90% of the target
+  tol99    at least 99%
+  nearest  stop at the count closest to the target (the closer of just below and just above)
+For each way, the H2 tests (Holm over 20 per shock) are rerun and the null-size / target-size distribution is recorded.
+Partial results are saved after each step, so an interrupted run resumes.
 
-사용: python null_sensitivity.py ../../02_data/processed/2026-09-25 --setting {tol90,tol99,nearest} [--seeds 500]
-출력: 04_results/tables/2026-09-25_full_null_<setting>/ (null_results.csv, null_tests.csv, null_verdicts.json)
+Usage: python null_sensitivity.py ../../02_data/processed/2026-09-25 --setting {tol90,tol99,nearest} [--seeds 500]
+Output: 04_results/tables/2026-09-25_full_null_<setting>/ (null_results.csv, null_tests.csv, null_verdicts.json)
 """
 import argparse
 import json
@@ -28,21 +28,22 @@ SETTINGS = ["tol90", "tol99", "nearest"]
 
 
 def nearest_matched(rng, eco, cand, dsize, target_n, semantics):
-    """무작위 순서로 후보를 더하다가, 제거 제공자 수가 표적에 가장 가까운 개수에서 멈춘다.
-    법적 충격은 누적 방식(빠름), 가용성 충격은 이분 탐색. 두 방식이 고르는 개수는 같다:
-    제거 수는 후보를 더할수록 줄지 않으므로, 둘 다 '처음으로 표적 이상이 되는 m*' 과 그 직전 중 가까운 쪽을 고른다."""
+    """Add candidates in random order and stop at the count whose removed-provider total is closest to the target.
+    The legal shock uses the incremental method (fast); the availability shock uses bisection. Both pick the same count:
+    the removed total never decreases as candidates are added, so both choose between 'the first m* reaching the target'
+    and the one just before it, whichever is closer."""
     if semantics == "legal":
         return _nearest_legal_incremental(rng, eco, cand, target_n)
     return _nearest_bisect(rng, eco, cand, dsize, target_n, semantics)
 
 
 def _reach_new(eco, seeds, mask):
-    """seeds 에서 시작해 mask 밖의 노드만 따라간 도달 집합 (mask 는 바꾸지 않는다).
-    법적 충격의 mask 는 후손에 닫혀 있으므로(표시된 노드의 후손은 이미 표시됨) 표시된 노드에서 멈춰도 된다."""
+    """Set reached from seeds by following only nodes outside mask (mask itself is not modified).
+    A legal-shock mask is closed under descendants (descendants of a marked node are already marked), so stopping at marked nodes is safe."""
     ip, ix = eco.children.indptr, eco.children.indices
     vis = getattr(eco, "_vis_buf", None)
     if vis is None:
-        vis = eco._vis_buf = np.zeros(eco.n, dtype=bool)          # 재사용 버퍼 (호출 끝에 쓴 칸만 되돌림)
+        vis = eco._vis_buf = np.zeros(eco.n, dtype=bool)          # reusable buffer (only the cells used are reset at the end)
     frontier = np.unique(np.asarray(seeds, dtype=np.int64))
     frontier = frontier[~mask[frontier]]
     vis[frontier] = True
@@ -63,8 +64,8 @@ def _reach_new(eco, seeds, mask):
 
 
 def _nearest_legal_incremental(rng, eco, cand, target_n, chunk=512):
-    """후보를 무작위 순서로 chunk 개씩 더하며 제거 제공자 수를 누적한다. 표적을 넘는 chunk 안에서는 하나씩.
-    한 개씩 더하는 방식과 같은 m* 를 고른다 (접두 집합의 합집합은 더하는 단위와 무관)."""
+    """Add candidates in random order, chunk at a time, accumulating removed providers. Inside the chunk that crosses
+    the target, add one at a time. Picks the same m* as adding singly (the union of a prefix does not depend on chunking)."""
     perm = rng.permutation(len(cand))
     mask = np.zeros(eco.n, dtype=bool)
     count, pos = 0, 0
@@ -78,14 +79,14 @@ def _nearest_legal_incremental(rng, eco, cand, target_n, chunk=512):
             pos += len(block)
             continue
         prev, last_new, m = count, np.zeros(0, dtype=np.int64), pos
-        for c in block:                                   # 이 chunk 안에서 표적을 넘는다 → 하나씩
+        for c in block:                                   # the target is crossed inside this chunk -> one at a time
             last_new = _reach_new(eco, [c], mask)
             mask[last_new] = True
             prev, count = count, count + int(eco.provider[last_new].sum())
             m += 1
             if count >= target_n:
                 break
-        if m > 1 and abs(count - target_n) > abs(target_n - prev):   # 직전이 더 가까우면 마지막 후보를 뺀다
+        if m > 1 and abs(count - target_n) > abs(target_n - prev):   # if the previous count is closer, drop the last candidate
             mask[last_new] = False
             return mask, prev, m - 1
         return mask, count, m
@@ -100,9 +101,9 @@ def _nearest_bisect(rng, eco, cand, dsize, target_n, semantics):
 
     cs = np.cumsum(dsize[perm])
     hi = min(int(np.searchsorted(cs, target_n)) + 1, len(cand))
-    while got(hi) < target_n and hi < len(cand):         # 겹침 때문에 모자라면 늘린다
+    while got(hi) < target_n and hi < len(cand):         # grow if overlap leaves it short
         hi = min(int(hi * 1.15) + 1, len(cand))
-    lo = 0                                                # got(lo) < target ≤ got(hi) 를 유지하며 이분 탐색
+    lo = 0                                                # bisect while keeping got(lo) < target <= got(hi)
     while hi - lo > 1:
         mid = (lo + hi) // 2
         if got(mid) >= target_n:
@@ -145,7 +146,7 @@ def main():
             "descendant_authors": cand[np.argsort(-cand_auth, kind="stable")],
             "downloads": cand[np.argsort(-eco.downloads[cand], kind="stable")],
             "outdegree": cand[np.argsort(-eco.outdeg[cand], kind="stable")]}
-    if args.setting == "nearest":                         # 누적 방식이 저장된 이분 탐색 결과와 같은지 확인
+    if args.setting == "nearest":                         # check that the incremental method matches saved bisection results
         f5 = part / "nearest_legal_k5.csv"
         if f5.exists():
             saved = pd.read_csv(f5)
@@ -157,7 +158,7 @@ def main():
                 row = saved[(saved.matched_to == "descendants") & (saved.seed == seed)].iloc[0]
                 assert (got, eco.loss(mm)["options_lost"]) == (row.removed_providers, row.options_lost), (seed, got, row)
             print("verified: incremental nearest matches saved bisection results (10 seeds)", flush=True)
-        vr = np.random.default_rng(99)                    # 가용성 충격: 벡터화한 미러 확인 = 원래 구현
+        vr = np.random.default_rng(99)                    # availability shock: vectorized mirror check = original implementation
         for size in [10, 1000, 20000]:
             seeds = np.unique(vr.choice(cand, size=size, replace=False))
             mask = np.zeros(eco.n, dtype=bool)
@@ -203,7 +204,7 @@ def main():
     tests, verdicts = [], {}
     for (setting, sem, k), g in df.groupby(["setting", "semantics", "k"]):
         for s in TARGETED:
-            # 대조군 행은 matched_to 로 구분한다: pandas 가 CSV 의 "null" 문자열을 결측으로 읽어 strategy 로는 못 찾는다
+            # null rows are identified by matched_to: pandas reads the CSV string "null" as missing, so strategy cannot be used
             obs = g[(g.strategy == s) & g.matched_to.isna()].options_lost.iat[0]
             null = g[g.matched_to == s]
             tests.append({"setting": setting, "semantics": sem, "k": k, "strategy": s, "observed": obs,
@@ -223,7 +224,7 @@ def main():
                                                                     float(g.size_ratio_median.max())]}
     t.to_csv(out / "null_tests.csv", index=False)
     (out / "null_verdicts.json").write_text(json.dumps(verdicts, indent=1), encoding="utf-8")
-    (out / "hypothesis_verdicts.json").write_text(json.dumps(verdicts, indent=1), encoding="utf-8")   # 진행 창 완료 표시용
+    (out / "hypothesis_verdicts.json").write_text(json.dumps(verdicts, indent=1), encoding="utf-8")   # completion marker for the progress window
     print(json.dumps(verdicts, indent=1))
 
 

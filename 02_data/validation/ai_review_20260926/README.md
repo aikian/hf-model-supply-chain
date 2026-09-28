@@ -1,41 +1,41 @@
-# AI 판정 기록 — 2026-09-26
+# AI labeling record — 2026-09-26
 
-요청에 따라 `../paper_validation_to_label.csv`의 300개 행을 판정하고 같은 CSV에 저장했다.
-판정자는 **AI(Codex)** 이며, 저자의 사람 독립 판정을 수행하거나 대체한 결과가 아니다.
-사람–LLM 일치도 또는 사람 검증의 근거로 이 CSV를 사람 판정이라고 보고해서는 안 된다.
-사람의 독립 판정이 필요하면 AI 결과를 보지 않은 상태에서 백업의 빈 양식을 사용해야 한다.
+As requested, the 300 rows of `../paper_validation_to_label.csv` were labeled and the labels were saved to the same CSV.
+The labeler is **an AI (OpenAI GPT-6 Astra, run in the Codex agent environment; notes are tagged `AI(Codex)`)**. This is not, and does not replace, an independent human labeling by the author.
+This CSV must not be reported as human labels, whether as evidence of human–LLM agreement or of human validation.
+If an independent human labeling is needed, use the blank form in the backup without looking at the AI results.
 
-## 방법
+## Method
 
-- `../codebook.md`와 사용자가 제시한 기준을 적용했다.
-- `paper_validation_llm_labels.csv`와 `paper_validation_key.csv`는 열지 않았다. 어떤 정제 규칙에 걸렸는지도 조회하지 않았다.
-- Hugging Face 공개 API의 모델 정보·파일 목록, raw README, 업로더의 모델 목록·프로필을 확인했다. 브라우저를 통한 사람의 육안 검사가 아니다.
-- 300개 모델의 정보 API가 모두 HTTP 200으로 응답했다. 284개 고유 계정의 모델 목록도 조회했다. 계정 목록은 최대 100개(재시도는 50개) 표본이므로 전체 계정을 전수 검사한 것은 아니다. `note`의 계정 모델 수는 프로필의 공개 집계값이다.
-- README 응답은 200 238개, 404 60개, 401 2개였다. README 부재나 접근 제한만으로 모델 삭제 또는 판정 불가를 단정하지 않고 파일 목록·계정 근거를 함께 적용했다.
-- 애매한 사례는 조직 소개, 설정 파일, 파일 크기, 공개 커밋 등으로 보완했다. Kate LoRA는 파일 전체 대신 HTTP Range로 safetensors 헤더만 읽어 기반 모델·트리거·텐서 구성을 확인했다.
-- 가중치를 실행하거나 모델 성능·파일 전체 무결성을 검증하지 않았다. 파일 존재·설정·설명과 계정 맥락에 근거한 저장소 분류다.
-- 자동 수집 스크립트는 근거만 수집했다. 최종 라벨은 행별로 근거를 검토해 `decisions.tsv`에 기록했다. 경계 사례의 추론은 `note`에 남겼다.
+- Applied `../codebook.md` and the criteria stated in the author's request.
+- `paper_validation_llm_labels.csv` and `paper_validation_key.csv` were not opened. Which cleaning rule flagged each model was not looked up either.
+- Evidence came from the public Hugging Face API (model info and file list), the raw README, and the uploader's model list and profile. This was not a human visual inspection in a browser.
+- The model-info API returned HTTP 200 for all 300 models. Model lists of the 284 unique accounts were also fetched. Account lists were capped at 100 models (50 on retry), so accounts were not inspected exhaustively. Account model counts in `note` are the public totals shown on the profile.
+- README responses: 238 × 200, 60 × 404, 2 × 401. A missing or access-restricted README alone was not taken to mean that the model was deleted or undecidable; the file list and account evidence were applied together.
+- Ambiguous cases were supplemented with the organization description, config files, file sizes, and public commits. For the Kate LoRA, only the safetensors header was read with an HTTP Range request instead of the whole file, to check the base model, trigger, and tensor layout.
+- Weights were not run, and model performance and full-file integrity were not verified. This is a repository classification based on file presence, configs, descriptions, and account context.
+- The collection scripts only gathered evidence. Final labels were assigned row by row after reviewing the evidence and recorded in `decisions.tsv`. Reasoning for borderline cases is in `note`.
 
-## 결과
+## Results
 
-| 라벨 | 개수 |
+| Label | Count |
 |---|---:|
-| 0 실제 공급원 | 116 |
-| 1 산출물 | 170 |
-| 9 판단 불가 | 14 |
-| 합계 | 300 |
+| 0 genuine | 116 |
+| 1 artifact | 170 |
+| 9 undecidable | 14 |
+| Total | 300 |
 
-산출물 유형: A 56개, B 73개, C 5개, D 36개.
+Artifact types: A 56, B 73, C 5, D 36.
 
-## 파일과 검증
+## Files and checks
 
-- `paper_validation_to_label.before_ai.csv`: 입력 전 빈 원본 백업.
-- `decisions.tsv`: 300개 행별 판정 원장. 행 번호는 헤더를 제외한 1부터 시작한다.
-- `evidence.jsonl`: 모델 API·README 응답과 조회 시각.
-- `accounts.jsonl`, `accounts_retry.jsonl`: 계정 근거와 실패 요청의 재시도 결과.
-- `extra.jsonl`, `kate_weight_header.json`: 경계 사례의 추가 근거.
-- `evidence_index.csv`: 모델별 공개 근거 URL·판정자·판정의 연결표.
-- `verification.json`: 검증 결과와 최종 CSV SHA-256.
+- `paper_validation_to_label.before_ai.csv`: backup of the blank input before labeling.
+- `decisions.tsv`: per-row decision ledger for the 300 rows. Row numbers start at 1, excluding the header.
+- `evidence.jsonl`: model API and README responses with fetch timestamps.
+- `accounts.jsonl`, `accounts_retry.jsonl`: account evidence and the retried results of failed requests.
+- `extra.jsonl`, `kate_weight_header.json`: additional evidence for borderline cases.
+- `evidence_index.csv`: per-model link table of public evidence URLs, labeler, and label.
+- `verification.json`: check results and the SHA-256 of the final CSV.
 
-300행, 모델 ID 고유성, 원래 행 순서·URL 보존, 필수 열 순서, 빈 라벨 없음, 0/1/9 값, 1일 때 A/B/C/D 유형, 모든 note의 AI 표시, UTF-8 BOM 및 CSV 재읽기를 확인했다.
-기존 비교용 LLM 판정과의 일치도나 정제 정확도는 계산하지 않았다.
+Checked: 300 rows; unique model IDs; original row order and URLs preserved; required column order; no empty labels; values in {0, 1, 9}; a type in A/B/C/D whenever the label is 1; the AI tag in every note; UTF-8 BOM; and that the CSV re-reads cleanly.
+Agreement with the existing comparison LLM labels and the precision of the cleaning rules were not computed here.

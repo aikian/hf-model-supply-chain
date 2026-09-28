@@ -1,9 +1,9 @@
-"""라이선스 분류 요약표 (LaTeX) → 04_results/tables/license_classes_<snap>.tex
+"""License class summary table (LaTeX) -> 04_results/tables/license_classes_<snap>.tex
 
-분석에 쓰는 값으로 센다: T1 모델, 속성 상속과 'other' 재분류(license_overrides.csv)를 반영한
-attributes.parquet 의 license.
+Counts use the values used in the analysis: T1 models, and the license column of attributes.parquet,
+which reflects attribute inheritance and the 'other' reclassification (license_overrides.csv).
 
-사용
+Usage
     python license_table.py ../../02_data/processed/2026-09-25
 """
 import argparse
@@ -46,7 +46,7 @@ def main():
     for c in ORDER:
         ids = sorted(ids_by_class.get(c, []), key=lambda x: -cnt.get(x, 0))
         tot = int(n_by_class.get(c, 0))
-        # 단 폭에 맞추려고 라이선스 ID 예시 열은 뺀다 (전체 매핑은 보충 자료)
+        # the example license-ID column is dropped to fit the column width (the full mapping is in the supplement)
         rows.append(f"{NAMES[c]} & {len(ids)} & {tot:,} ({100 * tot / len(lic):.1f}\\%) & {COMMERCIAL[c]} \\\\")
 
     tex = "\n".join([

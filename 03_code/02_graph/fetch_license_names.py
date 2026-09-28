@@ -1,20 +1,20 @@
-"""license:other 모델의 실제 라이선스 이름을 모델 카드에서 가져온다 (task B11).
+"""Fetch the real license name of license:other models from their model cards (task B11).
 
-HF 태그가 `license:other` 인 모델은 license_map.csv 에서 class "other" 로 떨어지지만,
-모델 카드 메타데이터의 `license_name` / `license_link` 에 실제 라이선스가 적혀 있는 경우가 많다
-(예: black-forest-labs/FLUX.1-dev → flux-1-dev-non-commercial-license).
+A model tagged `license:other` on HF falls into class "other" in license_map.csv, but the model-card
+metadata often names the real license in `license_name` / `license_link`
+(e.g. black-forest-labs/FLUX.1-dev -> flux-1-dev-non-commercial-license).
 
-1단계  대상 선정: 유효 라이선스(attributes.parquet, 상속 반영)가 'other' 이면서
-       (a) 후손(eco.reach, 자기 자신 제외)이 --min-desc 이상이거나
-       (b) 'other' 모델 중 downloads_all 상위 --top-dl 개.
-2단계  GET https://huggingface.co/api/models/<id>?expand[]=cardData 로 cardData.license_name,
-       cardData.license_link 수집. 익명 한도(5분 500회)를 지키려 요청 사이에 --sleep 초 쉬고,
-       429 이면 RateLimit 헤더의 t= 초만큼 기다렸다 재시도한다.
+Step 1  Selection: models whose effective license (attributes.parquet, with inheritance) is 'other' and that
+        (a) have at least --min-desc descendants (eco.reach, self excluded), or
+        (b) are among the top --top-dl 'other' models by downloads_all.
+Step 2  GET https://huggingface.co/api/models/<id>?expand[]=cardData and collect cardData.license_name and
+        cardData.license_link. To respect the anonymous limit (500 per 5 min), sleep --sleep seconds between
+        requests; on 429, wait the t= seconds from the RateLimit header and retry.
 
-결과는 JSONL 한 줄 = 모델 하나 (model_id, status, license_name, license_link, error, 선정 정보).
-이미 기록된 model_id 는 건너뛰므로 중단 후 재실행하면 이어서 받는다.
+Output is JSONL, one line per model (model_id, status, license_name, license_link, error, selection info).
+Already-recorded model_ids are skipped, so rerunning after an interruption resumes.
 
-사용 (03_code/03_simulation 의 removal_sim.py 를 import 한다):
+Usage (imports removal_sim.py from 03_code/03_simulation):
     python fetch_license_names.py ../../02_data/processed/2026-09-25 \
         --out ../../02_data/raw/license_names_2026-09-25.jsonl
 """
@@ -40,7 +40,7 @@ def select_candidates(processed, min_desc=50, top_dl=100):
     ap = argparse.ArgumentParser()
     add_common_args(ap)
     eco, _ = load_inputs(ap.parse_args([str(processed)]))
-    # 유효 라이선스 문자열 (load_inputs 와 같은 규칙: attributes.parquet 가 있으면 그것)
+    # effective license string (same rule as load_inputs: attributes.parquet if present)
     nodes = pd.read_parquet(processed / "nodes.parquet", columns=["model_id", "license", "downloads_all"])
     attr = processed / "attributes.parquet"
     if attr.exists():
@@ -105,7 +105,7 @@ def fetch(model_id, session, max_tries=5):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("processed", type=Path)
-    ap.add_argument("--out", type=Path, required=True, help="JSONL 출력 (이어 받기 지원)")
+    ap.add_argument("--out", type=Path, required=True, help="JSONL output (supports resuming)")
     ap.add_argument("--min-desc", type=int, default=50)
     ap.add_argument("--top-dl", type=int, default=100)
     ap.add_argument("--sleep", type=float, default=0.7)

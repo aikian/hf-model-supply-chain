@@ -1,12 +1,12 @@
-"""Fig: RQ2 — 표적 제거의 손실 배율 (표적 / 같은 규모 무작위 대조군 평균), 제거 예산 k 별. 충격 종류별 두 패널.
+"""Fig: RQ2 — loss ratio of targeted removal (targeted / mean of the matched null of the same size) per removal budget k. Two panels, one per shock type.
 
-y = 1 이면 표적이 같은 규모의 무작위 제거와 같은 만큼 잃는다. 속이 찬 점 = Holm 보정 후 유의 (H2).
-대조군 평균이 0 인데 표적 손실 > 0 이면 배율이 무한대 → 위쪽 경계에 삼각형으로 표시.
-절대 손실값은 표(Table)로 보고한다.
+y = 1 means the targeted removal loses as much as a random removal of the same size. Filled marker = significant after Holm correction (H2).
+If the null mean is 0 but the targeted loss > 0, the ratio is infinite and is drawn as a triangle at the top edge.
+Absolute loss values are reported in the table.
 
-입력: <result_dir>/h2_tests.csv (hypothesis_tests.py 출력)
-출력: 04_results/figures/fig_rq2_curves.{pdf,png} (+ _gray.png)
-사용: python fig_rq2_curves.py ../../04_results/tables/2026-09-25_full_main
+Input: <result_dir>/h2_tests.csv (output of hypothesis_tests.py)
+Output: 04_results/figures/fig_rq2_curves.{pdf,png} (+ _gray.png)
+Usage: python fig_rq2_curves.py ../../04_results/tables/2026-09-25_full_main
 """
 import argparse
 from pathlib import Path
@@ -24,7 +24,7 @@ ROOT = Path(__file__).resolve().parents[2]
 STRAT = [("descendants", "descendants", "#23395B", "o"), ("descendant_authors", "descendant accounts", "#B03A2E", "s"),
          ("downloads", "downloads", "#2E7D5B", "^"), ("outdegree", "out-degree", "#C7862F", "D")]
 SEM = [("legal", "Legal shock (all descendants)"), ("availability", "Availability shock (adapters; mirrors substitute)")]
-plt.rcParams.update({"font.family": "DejaVu Sans", "font.size": 7.5})   # 눈금·축 이름 7.5pt (캡션 8pt 기준)
+plt.rcParams.update({"font.family": "DejaVu Sans", "font.size": 7.5})   # ticks and axis labels 7.5pt (caption is 8pt)
 
 
 def main():
@@ -41,11 +41,11 @@ def main():
         ks = sorted(g["k"].unique())
         for j, (s, lab, col, mk) in enumerate(STRAT):
             x = g[g["strategy"] == s].set_index("k").reindex(ks)
-            xs = np.array(ks, dtype=float) * (1 + 0.06 * (j - 1.5))          # 겹침 방지용 가로 이동
+            xs = np.array(ks, dtype=float) * (1 + 0.06 * (j - 1.5))          # horizontal offset to avoid overlap
             r = x["ratio_vs_matched"].to_numpy(dtype=float)
             r_plot = np.where(np.isinf(r), top, np.where(r <= 0, bottom, r))
             ax.plot(xs, r_plot, lw=0.8, color=col, zorder=2)
-            ax.plot([], [], lw=0.8, color=col, marker=mk, ms=3.2, mfc="white", mec=col, label=lab)   # 범례용
+            ax.plot([], [], lw=0.8, color=col, marker=mk, ms=3.2, mfc="white", mec=col, label=lab)   # legend entry only
             sig = x["reject"].fillna(False).to_numpy(dtype=bool)
             inf = np.isinf(r)
             zero_ = (r <= 0) & ~np.isnan(r)
@@ -70,10 +70,10 @@ def main():
         for sp in ["top", "right"]:
             ax.spines[sp].set_visible(False)
     axes[-1].set_xlabel("Removal budget k (upstream models)")
-    # y축 이름은 7.5pt에서 패널 하나보다 길어 두 패널이 공유하는 이름 하나로 둔다
+    # at 7.5pt the y label is taller than one panel, so both panels share a single label
     ylab = fig.supylabel("Loss ratio vs. matched random", fontsize=7.5, x=0.0, ha="left")
-    # 범례 7pt: 한 줄(ncol=4)로는 3.5in을 넘으므로 두 줄. 주석 7pt도 두 줄로 나눈다.
-    # 범례 → 그 위에 주석 → 그 위에 축, 순서로 실측 높이를 재어 쌓는다.
+    # legend at 7pt: one row (ncol=4) exceeds 3.5in, so use two rows. The 7pt note is also split into two lines.
+    # Stack legend, then note above it, then the axes, measuring each rendered height in turn.
     h, lab = axes[0].get_legend_handles_labels()
     leg = fig.legend(h, lab, loc="lower center", ncol=2, frameon=False, fontsize=7.0, bbox_to_anchor=(0.5, 0.0),
                      handlelength=1.6, columnspacing=1.5, labelspacing=0.25, borderpad=0, borderaxespad=0.3)
@@ -86,7 +86,7 @@ def main():
     note_top = note.get_window_extent(fig.canvas.get_renderer()).y1 / fig.bbox.height
     ylab_right = ylab.get_window_extent(fig.canvas.get_renderer()).x1 / fig.bbox.width
     fig.tight_layout(rect=(ylab_right + 0.005, note_top + 0.01, 1, 1), pad=0.3)
-    # 공유 y축 이름을 두 패널의 세로 중앙에 맞춘다
+    # center the shared y label vertically between the two panels
     ylab.set_y((axes[0].get_position().y1 + axes[1].get_position().y0) / 2)
 
     fig.canvas.draw()

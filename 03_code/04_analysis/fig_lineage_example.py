@@ -1,11 +1,11 @@
-"""Fig. 1: 실제 계보 한 집안에서 제거 충격이 후손으로 전파되는 모습 (개념도).
+"""Fig. 1: how a removal shock propagates to descendants in one real model family (conceptual figure).
 
-가설 결과(기능 옵션 손실률)는 넣지 않는다. 보여 주는 것은 구조(후손 수)뿐이다.
-박스 크기를 고정하고 칸(slot) 단위로 배치해 겹침이 생기지 않게 한다.
+No hypothesis results (functional option loss rates) are shown, only structure (descendant counts).
+Boxes have fixed sizes and are placed on a slot grid so nothing overlaps.
 
-출력: 04_results/figures/fig1_lineage_example.{pdf,png}
+Output: 04_results/figures/fig1_lineage_example.{pdf,png}
 
-사용
+Usage
     python fig_lineage_example.py ../../02_data/processed/2026-09-25
 """
 import argparse
@@ -14,7 +14,7 @@ from pathlib import Path
 
 import matplotlib
 matplotlib.use("Agg")
-matplotlib.rcParams["pdf.fonttype"] = 42   # TrueType 내장 (IEEE PDF eXpress는 Type 3 거부)
+matplotlib.rcParams["pdf.fonttype"] = 42   # embed TrueType (IEEE PDF eXpress rejects Type 3)
 matplotlib.rcParams["ps.fonttype"] = 42
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -28,7 +28,7 @@ from removal_sim import add_common_args, load_inputs  # noqa: E402
 BASE = "meta-llama/Llama-3.1-8B"
 REMOVED = "meta-llama/Llama-3.1-8B-Instruct"
 N_SHOW_L1, N_SHOW_L2 = 2, 3
-# 표시용 이름 (모델 ID는 그대로 두고 그림에서만 줄인다. 캡션에 원래 ID를 밝힌다)
+# Display names: model IDs are unchanged and only shortened in the figure; the caption gives the full IDs
 DISPLAY = {
     "meta-llama/Llama-3.1-8B": ("Llama-3.1-8B", "meta-llama"),
     "meta-llama/Llama-3.1-8B-Instruct": ("Llama-3.1-8B-Instruct", "meta-llama"),
@@ -39,21 +39,21 @@ DISPLAY = {
     "arcee-ai/Llama-3.1-SuperNova-Lite": ("SuperNova-Lite", "arcee-ai"),
 }
 LS = {"finetune": "-", "quantized": (0, (3, 1.5)), "adapter": ":", "merge": "-.", "mirror": "--"}
-HIT_FC, HIT_EC = "#F4C7BE", "#A8321F"     # 사용 불가: 채움이 더 진하고 테두리 굵게 (흑백 인쇄 대비)
-OK_FC, OK_EC = "#FFFFFF", "#6B7785"       # 영향 없음: 흰 채움, 얇은 회색 테두리
+HIT_FC, HIT_EC = "#F4C7BE", "#A8321F"     # unavailable: darker fill, thicker edge (for grayscale print)
+OK_FC, OK_EC = "#FFFFFF", "#6B7785"       # unaffected: white fill, thin gray edge
 INK, MUTED = "#1F2328", "#57606A"
-# 좌표 단위 = 인치 (IEEE 단 폭 3.5in)
-# 글자 7.5/7pt(본문 캡션 8pt에 맞춤)를 2줄 박스에 넣으면 세 열의 최소 폭 합이 3.5in을 넘는다.
-# 그래서 열을 고정하지 않고 행을 어긋나게 배치한다: 제거 노드는 2세대 열 왼쪽에 붙이고(루트 위쪽 빈 칸으로
-# 확장), 루트의 나머지 자식은 2세대 박스 아래 행(4~6)에 두어 2세대 열 아래로 확장한다.
+# Coordinates are in inches (IEEE column width 3.5in).
+# With 7.5/7pt text (matching the 8pt caption) in two-line boxes, three fixed columns would exceed 3.5in.
+# So rows are staggered instead: the removed node sits just left of the generation-2 column (using the empty
+# slots above the root), and the root's other children go in rows 4-6 below the generation-2 boxes.
 FIG_W = 3.5
 GAP = 0.12
-W_BASE, W_MID, W_RIGHT = 1.27, 1.36, 1.36  # 박스 폭: 루트 / 1세대 / 2세대 (가장 긴 글줄 + 좌우 여유)
-X_BASE = W_BASE / 2                        # 루트 중심
-X_RIGHT = FIG_W - W_RIGHT / 2              # 2세대 (오른쪽 끝)
-X_MID = FIG_W - W_MID / 2                  # 루트의 나머지 자식: 2세대 아래, 오른쪽 정렬 (루트에서 대각 화살표)
-X_REM = FIG_W - W_RIGHT - GAP - W_MID / 2  # 제거 노드 (2세대 왼쪽)
-BH, DY = 0.36, 0.44                        # 박스 높이, 칸 간격
+W_BASE, W_MID, W_RIGHT = 1.27, 1.36, 1.36  # box widths: root / generation 1 / generation 2 (longest line + side padding)
+X_BASE = W_BASE / 2                        # root center
+X_RIGHT = FIG_W - W_RIGHT / 2              # generation 2 (right edge)
+X_MID = FIG_W - W_MID / 2                  # root's other children: below generation 2, right-aligned (diagonal arrows from root)
+X_REM = FIG_W - W_RIGHT - GAP - W_MID / 2  # removed node (left of generation 2)
+BH, DY = 0.36, 0.44                        # box height, slot spacing
 FS_TITLE, FS_SUB, FS_NOTE = 7.5, 7.0, 7.0
 
 
@@ -82,7 +82,7 @@ def main():
     show2, rest2 = l2.head(N_SHOW_L2), l2.iloc[N_SHOW_L2:]
     rem_total = int(rem["desc"]) + 1
 
-    # ------------------------------------------------ 배치 (slot 0 = 맨 위)
+    # ------------------------------------------------ layout (slot 0 = top)
     nodes, edges = {}, []
 
     def node(key, x, w, slot, lines, hit, bold=False):
@@ -95,33 +95,33 @@ def main():
     for j, (_, r) in enumerate(show2.iterrows()):
         node(f"a{j}", X_RIGHT, W_RIGHT, j, label(r["child_id"], int(r["desc"])), True)
         edges.append(("rem", f"a{j}", r["relation"], True))
-    # 후손 집합은 서로 겹친다 (병합, 재배포본의 양자화 등) → 합이 아니라 합집합으로 센다
+    # descendant sets overlap (merges, quantized mirrors, ...), so count the union rather than the sum
     n_rest2 = len(eco.reach([idx[c] for c in rest2["child_id"]]))
     node("a_rest", X_RIGHT, W_RIGHT, 3, [f"+{len(rest2):,} other children", f"n = {n_rest2:,} incl. subtrees"], True)
     edges.append(("rem", "a_rest", "finetune", True))
     node("rem", X_REM, W_MID, 1.5, label(REMOVED, int(rem["desc"])), True, bold=True)
     edges.append(("base", "rem", rem["relation"], True))
     node("base", X_BASE, W_BASE, 3.0, label(BASE, base_desc), False, bold=True)
-    # 루트의 나머지 자식은 2세대 열과 가로로 겹치므로 a_rest(행 3) 아래 행 4부터 둔다
+    # the root's other children overlap the generation-2 column horizontally, so they start at row 4 below a_rest (row 3)
     for j, (_, r) in enumerate(show1.iterrows()):
         node(f"b{j}", X_MID, W_MID, 4 + j, label(r["child_id"], int(r["desc"])), False)
         edges.append(("base", f"b{j}", r["relation"], False))
     node("b_rest", X_MID, W_MID, 6, [f"+{len(rest1):,} other children", "all relation types"], False)
     edges.append(("base", "b_rest", "finetune", False))
 
-    # ------------------------------------------------ 그리기
+    # ------------------------------------------------ drawing
     plt.rcParams.update({"font.family": "DejaVu Sans"})
     y_top, y_bot = BH / 2 + 0.03, -6 * DY - BH / 2 - 0.03
     fig = plt.figure(figsize=(FIG_W, (y_top - y_bot) * FIG_W / (FIG_W + 0.04)))
     ax = fig.add_axes([0, 0, 1, 1])
-    M = 0.02                                   # 테두리가 잘리지 않게 좌우 여백
+    M = 0.02                                   # side margin so box edges are not clipped
     ax.set_xlim(-M, FIG_W + M); ax.set_ylim(y_bot, y_top); ax.set_aspect("equal"); ax.axis("off")
     for a, b, rel, hit in edges:
         A, B = nodes[a], nodes[b]
         src = (A["x"] + A["w"] / 2, A["y"])
-        if B["x"] - B["w"] / 2 >= src[0] + 0.05:            # 자식이 오른쪽에 있으면 왼쪽 변으로
+        if B["x"] - B["w"] / 2 >= src[0] + 0.05:            # child to the right: enter at its left edge
             dst = (B["x"] - B["w"] / 2, B["y"])
-        else:                                                # 자식이 위쪽에 겹쳐 있으면 아래 변으로
+        else:                                                # child overlapping above: enter at its bottom edge
             dst = (B["x"], B["y"] - BH / 2)
         ax.annotate("", xy=dst, xytext=src,
                     arrowprops=dict(arrowstyle="-|>", lw=0.75, linestyle=LS.get(rel, "-"),
@@ -142,7 +142,7 @@ def main():
     r = nodes["rem"]
     rm_lab = ax.text(r["x"], r["y"] + BH / 2 + 0.05, "✕  removed", ha="center", va="bottom",
                      color=HIT_EC, fontsize=FS_NOTE, fontweight="bold")
-    # 루트 아래 왼쪽 칸(행 3.4~6.4)에 주석과 범례를 둔다 (다른 곳은 박스·화살표가 차지)
+    # the note and legend go in the free slots below the root (rows 3.4-6.4); boxes and arrows occupy the rest
     pct = 100 * rem_total / (base_desc + 1)
     note = ax.text(X_BASE, -4.25 * DY, f"1 removal → {rem_total:,}\nmodels unavailable\n({pct:.0f}% of the family)",
                    ha="center", va="center", color=HIT_EC, fontsize=FS_NOTE, linespacing=1.35)
@@ -154,7 +154,7 @@ def main():
                     bbox_transform=ax.transData, frameon=False, fontsize=FS_SUB, handlelength=1.8,
                     labelspacing=0.3, borderpad=0, title="n = descendants", title_fontsize=FS_SUB)
 
-    # ------------------------------------------------ 자동 레이아웃 검사: 글자가 박스 안에 있는가, 요소끼리 겹치는가
+    # ------------------------------------------------ automatic layout check: text inside boxes, no overlapping elements
     fig.canvas.draw()
     rend = fig.canvas.get_renderer()
     inv = ax.transData.inverted()
@@ -175,7 +175,7 @@ def main():
         for k, (bx, by, bw, bh) in zip(nodes, boxes):
             if x0 < bx + bw and x1 > bx and y0 < by + bh and y1 > by:
                 problems.append(f"{name} overlaps box '{k}'")
-    # 박스끼리, 자유 텍스트끼리 겹침
+    # box-box and free-text overlaps
     keys = list(nodes)
     for i, ki in enumerate(keys):
         bx, by, bw, bh = nodes[ki]["box"]

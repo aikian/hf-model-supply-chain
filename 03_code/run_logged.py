@@ -1,8 +1,8 @@
-"""명령 하나를 실행하고 출력을 로그에 한 줄씩 저장한다 (Colab 드라이브는 파일을 닫아야 동기화되므로 줄마다 열고 닫는다).
+"""Run one command and append its output to a log line by line (the Colab Drive mount syncs only on close, so the file is opened and closed per line).
 
-사용: python run_logged.py <로그 이름> <명령 ...>
-      예) python run_logged.py null_tol90_colab python 03_simulation/null_sensitivity.py ../02_data/processed/2026-09-25 --setting tol90
-로그: 04_results/logs/2026-09-25_<로그 이름>.log
+Usage: python run_logged.py <log name> <command ...>
+      e.g. python run_logged.py null_tol90_colab python 03_simulation/null_sensitivity.py ../02_data/processed/2026-09-25 --setting tol90
+Log: 04_results/logs/2026-09-25_<log name>.log
 """
 import datetime as dt
 import os

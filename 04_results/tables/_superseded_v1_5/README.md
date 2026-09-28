@@ -1,1 +1,3 @@
-2차 실행(버그 1~3 수정, 오류 #4 전) — 모의 심사 후 설계 v2로 교체되어 중단·폐기.
+# Superseded second run
+
+Stage: implementation-corrected analysis, partial. Errors 1–3 of `../_superseded_v1/README.md` fixed, but before error #4 (no-derivatives licenses were still counted as commercially usable). Stopped and superseded when the design was replaced by design v2 after the internal mock review.

@@ -1,61 +1,61 @@
-# 데이터 검수 보고서 (스냅샷 2026-09-25)
+# Data audit report (snapshot 2026-09-25)
 
-검수자: Claude (데이터 분석가 관점), 2026-09-25. 표본 판정 파일: `02_data/validation/dev_rule_development/cleaning_validation_labeled.csv`
+Auditor: Claude (AI assistant, in a data-analyst role), 2026-09-25. Sample labels: `02_data/validation/dev_rule_development/cleaning_validation_labeled.csv`
 
-> **주의: 1절 수치는 논문에 보고하지 않는다.** 판정자가 AI이고, 같은 표본으로 규칙을 고쳤기 때문에
-> 정밀도가 낙관적으로 편향되어 있다. 규칙 개발 참고용이다. 논문용 검증은 원고 §4.2의 사전 등록 절차를 따른다.
+> **Caution: the figures in Section 1 are not reported in the paper.** The labeler was an AI, and the rules were revised on the same sample,
+> so the precision estimates are optimistically biased. They are for rule development only. The validation reported in the paper follows the separate protocol described in the paper's data section (see `02_data/validation/codebook.md`).
 
-## 1. 정제 규칙 정밀도 (규칙 개발용 표본 300개, AI 판정)
+## 1. Precision of the cleaning rules (rule-development sample of 300, AI labels)
 
-판정 기준: 독립적으로 쓸 수 있는 모델 공급원이 **아닌 것**(봇, 과제, 테스트, 튜토리얼 산출물) = 잡음 1
+Criterion: anything that is **not** an independently usable model supplier (bot, assignment, test, tutorial artifact) = noise (1)
 
-| 층 | 표본 | 잡음 | 정밀도 | 95% CI (Wilson) | 오판 유형 |
+| Stratum | Sample | Noise | Precision | 95% CI (Wilson) | False-positive types |
 |---|---:|---:|---:|---|---|
-| 자동 업로드 (f_bot) | 40 | 40 | **100%** | 91.2–100 | 없음 |
-| 강의 과제 (f_course) | 40 | 37 | **92.5%** | 80.1–97.4 | cleanrl 공식 벤치마크, 연구용 RL |
-| 테스트 이름 (f_test) | 40 | 35 | **87.5%** | 73.9–94.5 | 연구 실험명의 "test"(DomainBed 등), 데모용 실제 파인튜닝 |
-| 튜토리얼 이름 (f_boilerplate) | 40 | 35 | **87.5%** | 73.9–94.5 | **미러**(원본 재업로드), 일반 이름의 실제 모델 |
-| 메타데이터 없음 (f_empty) | 40 | 20 | 50% | 35.2–64.8 | 실제 모델인데 태그가 없음 (RichardErkhov 양자화 등) |
-| **유지 (T1)** | 100 | 8 | 잔여 잡음 **8%** | 4.1–15.0 | LoRA 서비스 자동 ID, Bittensor 채굴, `test.2` 누락 |
+| Automated upload (f_bot) | 40 | 40 | **100%** | 91.2–100 | none |
+| Course assignment (f_course) | 40 | 37 | **92.5%** | 80.1–97.4 | official cleanrl benchmarks, research RL |
+| Test name (f_test) | 40 | 35 | **87.5%** | 73.9–94.5 | "test" in research experiment names (DomainBed etc.), genuine fine-tunes made for demos |
+| Boilerplate card (f_boilerplate) | 40 | 35 | **87.5%** | 73.9–94.5 | **mirrors** (re-uploads of the original), genuine models with generic names |
+| No metadata (f_empty) | 40 | 20 | 50% | 35.2–64.8 | genuine models without tags (RichardErkhov quantizations etc.) |
+| **Retained (T1)** | 100 | 8 | residual noise **8%** | 4.1–15.0 | automatic IDs from a LoRA service, Bittensor mining, `test.2` missed |
 
-- **f_empty는 잡음 규칙이 아니라 "분석 불가" 규칙이다.** 태스크와 라이선스가 없어서 기능 옵션을 만들 수 없다. 논문에서는 잡음 제거와 분리해서 보고한다.
-- 검수 뒤 반영한 것:
-  - 유지 표본에서 찾은 패턴 추가: cuid 자동 ID 2,716개, `gradients-io-tournaments` 1,565개, `test.N`
-  - 테스트 규칙에서 `demo` 제외 (오판이 많음)
-  - 강의 규칙은 RL 과제용 라이브러리만 대상으로 함 (RL로 학습한 LLM 보호)
-- **남은 한계:** Bittensor 채굴 계정(`tomaszki` 등)은 이름 규칙으로 구분이 안 된다. T1 잔여 잡음은 약 5–8%로 추정한다.
+- **f_empty is not a noise rule but an "unanalyzable" rule.** Without task and license, no functional option can be formed. The paper reports it separately from noise removal.
+- Changes made after the audit:
+  - Added patterns found in the retained sample: cuid automatic IDs (2,716), `gradients-io-tournaments` (1,565), `test.N`
+  - Removed `demo` from the test rule (too many false positives)
+  - Restricted the course rule to libraries used for RL assignments (protects LLMs trained with RL)
+- **Remaining limitation:** Bittensor mining accounts (`tomaszki` etc.) cannot be separated by name rules. Residual noise in T1 is estimated at about 5–8%.
 
-## 2. 구조 무결성 점검과 조치
+## 2. Structural integrity checks and fixes
 
-| # | 문제 | 규모 | 조치 | 위치 |
+| # | Problem | Size | Fix | Where |
 |---|---|---:|---|---|
-| 1 | 자기 자신을 부모로 선언 (self-loop) | 2,044 | 제거 | build_graph.py |
-| 2 | 부모 ID 대소문자 불일치 → "없는 부모"로 오분류 | 2,343 | 스냅샷 표기로 정규화 | build_graph.py |
-| 3 | 레거시 일괄 날짜 2022-03-02 (실제 업로드 시각 아님) | 29,579 모델 | 해당 엣지는 시간 판정 불가(NA)로 | build_graph.py |
-| 4 | 순환 (강연결요소) | 12개, 엣지 29 | 분석에서 제외 (`in_cycle`) | infer_edges.py |
-| 5 | **미러**: 부모 선언 없이 인기 모델 이름을 그대로 쓴 복사본 → 가짜 독립 계보 | 11,264 | 원본을 부모로 추론 (relation=mirror) | infer_edges.py |
-| 6 | **이름에만 있는 부모** (RichardErkhov `author_-_model`) | 22,962 | 부모 복원 | infer_edges.py |
-| 7 | 양자화 이름인데 부모 선언 없음 | 14,231 | 접미사를 뗀 이름이 **유일하게** 대응될 때만 부모 복원 | infer_edges.py |
+| 1 | Model declares itself as its parent (self-loop) | 2,044 | removed | build_graph.py |
+| 2 | Parent ID case mismatch → misclassified as "missing parent" | 2,343 | normalized to the snapshot spelling | build_graph.py |
+| 3 | Legacy batch date 2022-03-02 (not the actual upload time) | 29,579 models | temporal check for these edges set to NA | build_graph.py |
+| 4 | Cycles (strongly connected components) | 12, with 29 edges | excluded from the analysis (`in_cycle`) | infer_edges.py |
+| 5 | **Mirrors**: copies that reuse a popular model's name with no parent declared → spurious independent lineages | 11,264 | original inferred as parent (relation=mirror) | infer_edges.py |
+| 6 | **Parent only in the name** (RichardErkhov `author_-_model`) | 22,962 | parent recovered | infer_edges.py |
+| 7 | Quantization name with no parent declared | 14,231 | parent recovered only when the name without the suffix matches **exactly one** model | infer_edges.py |
 
-- 조치 후 전체 엣지: 선언 903,939 + 추론 48,457 = **952,396**. 부모가 새로 생긴 모델은 48,457개. 추론 엣지 중 시간 역전은 34개(0.07%)뿐이라 추론이 대체로 타당하다.
-- 부모가 스냅샷에 없는 엣지는 1.89%다. 삭제됐거나 비공개가 된 부모로, 예: `runwayml/stable-diffusion-v1-5` 3,370개. **이미 일어난 공급 중단 사례**라 논문의 동기 예시로 쓸 수 있다.
-- 시간 판정이 가능한 엣지 중 99.58%가 부모가 먼저 올라왔다. Horwitz et al.의 99.73%와 일치한다.
+- Edges after the fixes: 903,939 declared + 48,457 inferred = **952,396**. 48,457 models gained a parent. Only 34 inferred edges (0.07%) are temporal reversals, so the inference is largely sound.
+- 1.89% of edges have a parent that is not in the snapshot: parents that were deleted or made private, e.g. `runwayml/stable-diffusion-v1-5` (3,370 edges). **These are supply interruptions that have already happened** and can serve as motivating examples in the paper. (Later correction: `runwayml/stable-diffusion-v1-5` was not simply removed; the Hub redirects the ID to the re-upload `stable-diffusion-v1-5/stable-diffusion-v1-5`, and such edges were reconnected in a later pipeline step. See the paper's data section.)
+- Of the edges for which the temporal check is possible, 99.58% have the parent uploaded first, consistent with the 99.73% reported by Horwitz et al.
 
-## 3. 필드 품질
+## 3. Field quality
 
-| 필드 | 상태 | 영향 |
+| Field | Status | Impact |
 |---|---|---|
-| 라이선스 | 36% 선언. 83종. `other` 118,553개 | `other`는 vendor_custom으로 분류했지만 모호함 → 강건성 점검에서 unknown으로 바꿔 재분석 |
-| 언어 | 14.7%만 태그 | 옵션 대부분이 `unk` 언어. 거친 정의(태스크 × 라이선스)로 강건성 점검 |
-| 태스크 (pipeline_tag) | 34%만 있음 | 양자화·미러는 부모의 태스크를 **상속**하면 개선 가능 (미적용, 제안) |
-| 다운로드 | 결측·음수 없음. 최대 39억 (all-MiniLM-L6-v2) | 두꺼운 꼬리 → 로그 척도로 보고 |
-| 날짜 | 미래 날짜 없음. 레거시 일괄 날짜 29,579 | 조치 완료 |
+| License | 36% declared; 83 distinct values; `other` 118,553 | `other` was classed as vendor_custom but is ambiguous → re-analyzed as unknown in a robustness check |
+| Language | only 14.7% tagged | most options have language `unk`. Robustness check with the coarse definition (task × license) |
+| Task (pipeline_tag) | only 34% present | quantizations and mirrors could **inherit** the parent's task (not applied; proposed) |
+| Downloads | no missing or negative values; max 3.9 billion (all-MiniLM-L6-v2) | heavy tail → report on a log scale |
+| Dates | no future dates; legacy batch date 29,579 | fixed |
 
-## 4. 정제 전후 비교 (정제가 결론을 바꾸는 사례)
+## 4. Before and after cleaning (a case where cleaning changes the conclusion)
 
-정제 전에는 자식이 가장 많은 기반 모델 2·3·4위가 Qwen1.5-0.5B, Qwen1.5-1.8B, gemma-2b였다. 이들 자식의 96–99%가 채굴 봇 업로드였다. 정제 후에는 Qwen1.5-0.5B의 자식이 32,534개에서 270개로 줄었다. **정제 없이는 "핵심 기반 모델" 순위가 봇 때문에 왜곡된다.** 이 비교를 논문의 데이터 정제 절에 표로 넣을 것.
+Before cleaning, the base models ranked 2nd, 3rd, and 4th by number of children were Qwen1.5-0.5B, Qwen1.5-1.8B, and gemma-2b; 96–99% of their children were mining-bot uploads. After cleaning, Qwen1.5-0.5B's children drop from 32,534 to 270. **Without cleaning, the ranking of "core base models" is distorted by bots.** The comparison is tabulated in `cleaning_effect_2026-09-25.csv`.
 
-## 5. 남은 제안
-1. 양자화·미러에 부모의 태스크와 라이선스를 상속한다 → "메타데이터 없음"이 줄어든다
-2. Bittensor 채굴 계정 목록을 작성한다 (계정 단위 규칙)
-3. 논문용 검증: 규칙 동결 → **새 표본** → 저자 2인 독립 판정 → 정밀도 + Cohen's κ (원고 §4.2)
+## 5. Follow-ups proposed at the time of the audit
+1. Let quantizations and mirrors inherit the parent's task and license → fewer "no metadata" models (implemented later in `03_code/02_graph/enrich_attributes.py`)
+2. Compile a list of Bittensor mining accounts (account-level rule)
+3. Validation for the paper: freeze the rules → **new sample** → two independent raters → precision + Cohen's κ (carried out with two language-model labelers; see `02_data/validation/codebook.md` and the paper)

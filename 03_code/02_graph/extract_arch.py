@@ -1,11 +1,11 @@
-"""원본 스냅샷의 태그에서 모델 구조(architecture) 이름을 뽑는다 → RQ1 대체 가능성 하한용.
+"""Extract the model architecture name from the raw snapshot's tags -> lower bound on substitutability for RQ1.
 
-HF 는 config.json 의 model_type 을 태그로 붙인다 (예: llama, qwen2, gemma2). 같은 구조라고 같은 계보는
-아니므로(예: llama 구조로 처음부터 학습한 모델), 이 값으로 루트를 묶으면 독립 계보를 **과소** 추정한다
-= 대체 가능성의 하한. 제거 시뮬레이션에는 쓰지 않는다.
+HF attaches config.json's model_type as a tag (e.g. llama, qwen2, gemma2). The same architecture does not imply the
+same lineage (e.g. a model trained from scratch on the llama architecture), so grouping roots by this value
+**underestimates** independent lineages = a lower bound on substitutability. Not used in the removal simulation.
 
-출력: 02_data/processed/<snap>/arch.parquet  (model_id, arch)
-사용: python extract_arch.py ../../02_data/raw/hf_models_2026-09-25.jsonl.gz
+Output: 02_data/processed/<snap>/arch.parquet  (model_id, arch)
+Usage: python extract_arch.py ../../02_data/raw/hf_models_2026-09-25.jsonl.gz
 """
 import argparse
 import gzip
@@ -15,7 +15,7 @@ from pathlib import Path
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[2]
-# 구조 이름으로 쓰이는 태그 (표본 2만 개의 태그 빈도와 transformers/diffusers model_type 목록에서 골랐다)
+# tags used as architecture names (chosen from tag frequencies in a 20,000-model sample and the transformers/diffusers model_type lists)
 ARCH = set("""
 llama qwen qwen2 qwen2_moe qwen3 qwen3_moe qwen3_5 qwen3_next qwen2_vl qwen2_5_vl qwen2_audio qwen3_vl
 mistral mixtral ministral gemma gemma2 gemma3 gemma3_text gemma3n paligemma recurrent_gemma

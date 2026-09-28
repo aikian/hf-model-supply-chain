@@ -1,9 +1,9 @@
-"""실험 모니터 (연구용 대시보드). 노트북과 Colab 작업을 구역으로 나눠 보여 준다.
+"""Experiment monitor (research dashboard). Shows laptop and Colab jobs in separate panels.
 
-    python progress_ui.py          # 5초마다 새로 고침, Ctrl+C 종료
+    python progress_ui.py          # refreshes every 5 s, Ctrl+C to quit
 
-데이터: 04_results/logs 의 로그 (Colab 로그는 구글 드라이브 동기화로 들어온다) + 완료 표시 파일.
-단계: 법적 충격(탐욕 + k 5개) │ 가용성 충격(탐욕 + k 5개) │ RQ1 대체 가능성 │ 가설 판정 = 14 단계.
+Data: logs in 04_results/logs (Colab logs arrive through Google Drive sync) + completion marker files.
+Steps: legal shock (greedy + 5 k) │ availability shock (greedy + 5 k) │ RQ1 substitutability │ hypothesis verdicts = 14 steps.
 """
 import ctypes
 import datetime as dt

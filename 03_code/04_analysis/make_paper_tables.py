@@ -1,14 +1,14 @@
-r"""결과 CSV → 원고용 LaTeX 표와 숫자 매크로. 변형이 끝날 때마다 다시 돌리면 원고 숫자가 갱신된다.
+r"""Result CSVs -> LaTeX tables and number macros for the manuscript. Rerun after each variant finishes to refresh the manuscript numbers.
 
-출력: 05_paper_tse/generated/
-    numbers.tex      \newcommand 숫자 매크로 (본문에서 \HOneWild 처럼 쓴다)
-    tab_rq1.tex      RQ1 표 본문 (tabular 안쪽 행)
-    tab_rq2.tex      RQ2 표 본문
-    tab_rq3.tex      RQ3 표 본문
-    tab_robust.tex   강건성 표 본문
-아직 끝나지 않은 변형은 \RES{pending} 으로 남긴다.
+Output: 05_paper_tse/generated/
+    numbers.tex      \newcommand number macros (used in the text as \HOneWild etc.)
+    tab_rq1.tex      RQ1 table body (rows inside the tabular)
+    tab_rq2.tex      RQ2 table body
+    tab_rq3.tex      RQ3 table body
+    tab_robust.tex   robustness table body
+Variants that have not finished are left as \RES{pending}.
 
-사용: python make_paper_tables.py
+Usage: python make_paper_tables.py
 """
 import json
 from pathlib import Path
@@ -31,7 +31,7 @@ VARIANTS = [("main_notest", "Main (T1-main)"), ("main", "T1-original (test rule 
 H3_ROWS = [("noncommercial", "Non-commercial"), ("vendor_custom", "Vendor-custom"), None,
            ("no_derivatives", "No-derivatives"), ("responsible_ai", "RAIL"), ("copyleft", "Copyleft")]
 PENDING = r"\RES{pending}"
-# 주 분석: 사전 결정 규칙(정밀도 80% 미만 규칙 끄기)에 따라 test 규칙을 끈 실행. 끝나기 전에는 원래 T1 을 쓰고 경고한다.
+# Main analysis: the run with the test rule dropped, per the pre-registered rule (drop rules below 80% precision). Until it finishes, use the original T1 and warn.
 PROVIDERS = {"main": 1_631_600, "main_notest": 1_656_701}
 
 
@@ -64,7 +64,7 @@ def bins(s):
 def rq1(macros):
     sub = pd.read_csv(d(MAIN) / "substitutability.csv")
     cols = [bins(sub["n_root_lineages"])]
-    strict_main = TAB / f"{SNAP}_subst_T1main_strict" / "substitutability.csv"     # 같은 모집단(T1-main)의 strict
+    strict_main = TAB / f"{SNAP}_subst_T1main_strict" / "substitutability.csv"     # strict option on the same population (T1-main)
     if strict_main.exists():
         cols.append(bins(pd.read_csv(strict_main)["n_root_lineages"]))
     elif done("strictlang"):
@@ -110,7 +110,7 @@ def rq2(macros):
             rat = []
             for k in KS:
                 star = "$^{*}$" if bool(t.loc[k, "reject"]) else ""
-                if t.loc[k, "null_mean"] == 0 and t.loc[k, "observed"] == 0:   # 둘 다 0: 배율 정의 안 됨
+                if t.loc[k, "null_mean"] == 0 and t.loc[k, "observed"] == 0:   # both 0: ratio undefined
                     rat.append("--")
                     continue
                 rat.append(f"{t.loc[k, 'ratio_vs_matched']:.2f} ({t.loc[k, 'percentile_in_null']:.0f}){star}")
@@ -136,7 +136,7 @@ def rq2(macros):
         macros[f"GreedyOpts{key}KHundred"] = f"{int(round(g.pct_options_lost / 100 * total)):,}"
     macros["RatioMin"] = num(fin.ratio_vs_matched.min())
     macros["RatioMax"] = num(fin.ratio_vs_matched.max())
-    # 대비: 다운로드 상위 100 (법적 충격)
+    # contrast: top 100 by downloads (legal shock)
     dl = res[(res.semantics == "legal") & (res.strategy == "downloads") & (res.k == 100)].iloc[0]
     macros["DlHundredModels"] = pct(dl.removed_providers / T1, 1)
     macros["DlHundredDownloads"] = pct(dl.pct_downloads_lost / 100, 1)

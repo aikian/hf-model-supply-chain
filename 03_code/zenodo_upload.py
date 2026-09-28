@@ -1,11 +1,11 @@
-"""Zenodo 데이터 레코드 업로드 (02_data/zenodo_upload.md 의 파일·메타데이터를 API 로 올린다).
+"""Upload the Zenodo data record (the files and metadata listed in 02_data/zenodo_upload.md, through the API).
 
-토큰: ~/.zenodo_token (한 줄) 또는 환경변수 ZENODO_TOKEN. 필요한 권한: deposit:write, deposit:actions.
-상태: 02_data/zenodo_state.json 에 deposition id 를 저장해 두므로 중단 후 다시 실행하면 이어서 올린다.
-기본은 초안(draft)까지만 만들고 DOI 를 예약한다. --publish 를 주면 공개한다 (공개 후 삭제 불가).
+Token: ~/.zenodo_token (one line) or the ZENODO_TOKEN environment variable. Required scopes: deposit:write, deposit:actions.
+State: the deposition id is saved in 02_data/zenodo_state.json, so rerunning after an interruption resumes the upload.
+By default only a draft is created and a DOI is reserved. --publish publishes the record (it cannot be deleted afterwards).
 
-사용: python zenodo_upload.py            # 초안 생성 + 파일 업로드 + MD5 검증
-      python zenodo_upload.py --publish  # 검증 후 공개
+Usage: python zenodo_upload.py            # create draft + upload files + verify MD5
+      python zenodo_upload.py --publish  # verify, then publish
 """
 import argparse
 import hashlib
@@ -98,10 +98,10 @@ def req(method, url, *, retries=4, **kw):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--publish", action="store_true")
-    ap.add_argument("--parallel", type=int, default=6, help="동시에 올릴 파일(또는 조각) 수")
-    ap.add_argument("--only", default=None, help="이 이름의 파일 하나만 올린다 (다른 파일은 건드리지 않음)")
+    ap.add_argument("--parallel", type=int, default=6, help="number of files (or parts) to upload at once")
+    ap.add_argument("--only", default=None, help="upload only the file with this name (other files are not touched)")
     ap.add_argument("--multipart", type=int, default=0,
-                    help="이 크기(MB)보다 큰 파일은 InvenioRDM 멀티파트로 조각내 올린다 (0 = 끔). 큰 PUT 이 502 로 죽을 때 사용")
+                    help="files larger than this size (MB) are uploaded as InvenioRDM multipart chunks (0 = off). Use when large PUTs die with 502")
     args = ap.parse_args()
     global FILES
     if args.only:
@@ -116,7 +116,7 @@ def main():
 
     state = json.loads(STATE.read_text(encoding="utf-8")) if STATE.exists() else {}
     if state.get("id") and args.only:
-        # --only 모드: 브라우저가 올리는 중인 pending 항목이 있으면 deposit API 가 500 을 내므로 RDM 파일 API 만 쓴다
+        # --only mode: the deposit API returns 500 while a browser upload leaves a pending entry, so use only the RDM files API
         dep = {"id": state["id"], "links": {}, "metadata": {}}
         print("resuming deposition", dep["id"], "(only mode, RDM files API)")
     elif state.get("id"):
@@ -138,7 +138,7 @@ def main():
         print("already published:", dep.get("doi"))
         return
 
-    # 메타데이터 (예약 DOI 포함)
+    # metadata (including the reserved DOI)
     if not args.only:
         r = req("PUT", f"{API}/deposit/depositions/{dep['id']}", params=params,
                 json={"metadata": {**METADATA, "prereserve_doi": True}})
@@ -150,7 +150,7 @@ def main():
         STATE.write_text(json.dumps(state, indent=1), encoding="utf-8")
         print("reserved DOI:", doi)
 
-    # 파일 업로드 (이미 있고 MD5 가 같으면 건너뜀). 원격 목록은 RDM 파일 API (pending 항목이 있어도 동작)
+    # file upload (skipped when the file exists remotely with the same MD5). Remote listing via the RDM files API (works with pending entries)
     bucket = dep["links"].get("bucket")
     HB0 = {"Authorization": f"Bearer {params['access_token']}"}
     r = requests.get(f"{API}/records/{dep['id']}/draft/files", headers=HB0, timeout=120)
@@ -163,15 +163,15 @@ def main():
         if remote.get(p.name) == local:
             print(f"  skip (already uploaded) {p.name}")
             continue
-        if p.name in remote:  # 손상된 업로드는 지우고 다시
+        if p.name in remote:  # delete a corrupted upload and redo it
             requests.delete(f"{API}/records/{dep['id']}/draft/files/{p.name}", headers=HB0, timeout=120)
         todo.append((p, local))
-    todo.sort(key=lambda x: -x[0].stat().st_size)  # 큰 파일부터
+    todo.sort(key=lambda x: -x[0].stat().st_size)  # largest first
 
     def upload_one(item):
         p, local = item
         size = p.stat().st_size
-        if bucket is None:  # --only 모드: deposit API 를 못 쓰므로 RDM 단일 파일 업로드 (init -> content PUT -> commit)
+        if bucket is None:  # --only mode: the deposit API is unusable, so use the RDM single-file upload (init -> content PUT -> commit)
             RDM = f"{API}/records/{dep['id']}/draft/files"
             for attempt in range(5):
                 print(f"  uploading {p.name} ({size / 1048576:.1f} MB) via RDM" + (f", attempt {attempt + 1}" if attempt else "") + " ...", flush=True)
@@ -203,7 +203,7 @@ def main():
                   flush=True)
             t = time.time()
             try:
-                with open(p, "rb") as fh:  # 재시도마다 파일을 처음부터 다시 읽는다 (같은 핸들을 재사용하면 빈 본문이 간다)
+                with open(p, "rb") as fh:  # reopen the file on every retry (reusing the handle sends an empty body)
                     r = requests.put(f"{bucket}/{p.name}", params=params, data=fh, timeout=(60, 1800))
             except requests.RequestException as e:
                 print(f"    {p.name}: {type(e).__name__}, retrying", flush=True)
@@ -223,7 +223,7 @@ def main():
             return None
         return f"gave up on {p.name} after 5 attempts"
 
-    # InvenioRDM 멀티파트: 큰 파일을 조각으로 나눠 병렬 PUT 후 commit. 조각 하나가 실패해도 그 조각만 다시 보낸다.
+    # InvenioRDM multipart: split a large file into parts, PUT them in parallel, then commit. A failed part is resent on its own.
     RDM = f"{API}/records/{dep['id']}/draft/files"
     HB = {"Authorization": f"Bearer {params['access_token']}"}
 
@@ -231,7 +231,7 @@ def main():
         part = args.multipart * 1024 * 1024
         size = p.stat().st_size
         nparts = -(-size // part)
-        if requests.get(f"{RDM}/{p.name}", headers=HB, timeout=120).status_code == 200:  # 남은 pending 항목 제거
+        if requests.get(f"{RDM}/{p.name}", headers=HB, timeout=120).status_code == 200:  # remove a leftover pending entry
             requests.delete(f"{RDM}/{p.name}", headers=HB, timeout=120)
         entry = None
         for attempt in range(3):
@@ -240,7 +240,7 @@ def main():
             if r.status_code == 201:
                 entry = r.json()["entries"][0]
                 break
-            r2 = requests.get(f"{RDM}/{p.name}", headers=HB, timeout=120)  # 게이트웨이가 끊겨도 항목은 생겼을 수 있다
+            r2 = requests.get(f"{RDM}/{p.name}", headers=HB, timeout=120)  # the entry may exist even if the gateway dropped the response
             if r2.status_code == 200 and r2.json().get("links", {}).get("parts"):
                 entry = r2.json()
                 break
@@ -248,7 +248,7 @@ def main():
             time.sleep(20)
         if entry is None:
             return f"{p.name}: multipart init failed"
-        if not entry.get("links", {}).get("parts"):  # 목록 응답에는 조각 링크가 없을 수 있다: 항목을 직접 조회
+        if not entry.get("links", {}).get("parts"):  # the list response may lack part links: fetch the entry directly
             r = requests.get(f"{RDM}/{p.name}", headers=HB, timeout=120)
             entry = r.json() if r.status_code == 200 else entry
         links = entry.get("links", {}).get("parts")
@@ -296,17 +296,17 @@ def main():
     if args.multipart:
         big = [x for x in todo if x[0].stat().st_size > args.multipart * 1024 * 1024]
         todo = [x for x in todo if x not in big]
-        for p, local in big:  # 큰 파일은 하나씩, 조각은 병렬
+        for p, local in big:  # large files one at a time, parts in parallel
             e = multipart_upload(p, local)
             if e:
                 errors.append(e)
-    # Zenodo 까지의 TCP 스트림 하나가 느려서 (약 50 KB/s) 작은 파일 여러 개를 동시에 올린다
+    # a single TCP stream to Zenodo is slow (about 50 KB/s), so upload several small files at once
     with ThreadPoolExecutor(max_workers=args.parallel) as ex:
         errors += [e for e in ex.map(upload_one, todo) if e]
     if errors:
         sys.exit("\n".join(errors))
 
-    # 최종 검증: 원격 파일 목록 = 로컬 목록, MD5 일치
+    # final check: remote file list = local list, MD5 match
     r = requests.get(f"{API}/records/{dep['id']}/draft/files", headers=HB0, timeout=120)
     remote = {e["key"]: (e.get("checksum") or "").replace("md5:", "") for e in r.json().get("entries", [])
               if e.get("status") == "completed"}

@@ -1,13 +1,13 @@
-"""사전에 정한 모든 실험을 순서대로 실행한다 (메모리 7.7GB 환경이라 병렬 실행하지 않음).
+"""Run all pre-specified experiments in order (no parallelism by default: the laptop has 7.7 GB of memory).
 
-각 변형마다: removal_sim.py → substitutability.py → hypothesis_tests.py
-결과: 04_results/tables/<snap>_full_<variant>/  (removal_results.csv, substitutability.csv,
+Per variant: removal_sim.py -> substitutability.py -> hypothesis_tests.py
+Results: 04_results/tables/<snap>_full_<variant>/  (removal_results.csv, substitutability.csv,
       h2_tests.csv, h3_tests.csv, hypothesis_verdicts.json)
-로그: 04_results/logs/run_all_<snap>.log
+Log: 04_results/logs/run_all_<snap>.log
 
-사용
+Usage
     python run_all_experiments.py ../02_data/processed/2026-09-25
-    python run_all_experiments.py ../02_data/processed/2026-09-25 --only main     # 주 분석만
+    python run_all_experiments.py ../02_data/processed/2026-09-25 --only main     # main analysis only
 """
 import argparse
 import datetime as dt
@@ -17,17 +17,17 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
-# (이름, 추가 인자) — 원고의 Analysis Plan 강건성 목록 (a)–(h)와 같은 순서
+# (name, extra args) — same order as the robustness list (a)-(h) in the manuscript's Analysis Plan
 VARIANTS = [
     ("main", []),
-    ("main_notest", ["--drop-rule", "f_test"]),                   # 사전 결정 규칙: test 규칙 정밀도 64% < 80% (2026-09-26 검증)
+    ("main_notest", ["--drop-rule", "f_test"]),                   # pre-registered rule: test rule precision 64% < 80% (validated 2026-09-26)
     ("tierT0", ["--tier", "T0"]),                                   # (a)
     ("tierT2", ["--tier", "T2"]),                                   # (a)
     ("declared", ["--declared-only", "--no-inherit"]),              # (b)
     ("keeptv", ["--keep-temporal-violations"]),                     # (c)
     ("noquant", ["--exclude-quantized"]),                           # (d)
     ("coarse", ["--option", "coarse"]),                             # (e)
-    ("strictlang", ["--option", "strict"]),                         # (e') 언어 없음을 별개 값 (v1, 대체 가능성 하한)
+    ("strictlang", ["--option", "strict"]),                         # (e') missing language as a distinct value (v1, lower bound on substitutability)
     ("other2unk", ["--other-as-unknown"]),                          # (f)
     ("strictcom", ["--strict-commercial"]),                         # (g)
     ("noov", ["--no-license-overrides"]),                           # (h)
@@ -35,18 +35,18 @@ VARIANTS = [
 
 
 def run_variant(name, extra, processed, seeds, logdir, host):
-    """변형 하나: removal_sim → substitutability → hypothesis_tests. 로그는 변형·장소별 파일
-    (노트북과 Colab 이 같은 드라이브 폴더에 동시에 쓰므로 한 파일을 같이 쓰지 않는다)."""
+    """One variant: removal_sim -> substitutability -> hypothesis_tests. One log file per variant and host
+    (the laptop and Colab write to the same Drive folder at the same time, so they must not share a file)."""
     import os
     snap = processed.name
     out = ROOT / "04_results" / "tables" / f"{snap}_full_{name}"
-    if (out / "hypothesis_verdicts.json").exists():      # 끝난 변형은 건너뛴다 (중단 후 재개)
+    if (out / "hypothesis_verdicts.json").exists():      # skip finished variants (resume after an interruption)
         return f"skip {name} (done)"
     logpath = logdir / f"{snap}_{name}_{host}.log"
 
     def write(s):
-        # 줄마다 열고 닫는다: Colab 의 드라이브 마운트는 파일을 닫아야 동기화하므로, 열어 둔 채 쓰면
-        # 실행이 끝날 때까지 노트북 쪽 진행 창에 아무것도 보이지 않는다
+        # open and close per line: the Colab Drive mount syncs only on close, so writing through an open handle
+        # shows nothing in the laptop's progress view until the run ends
         with open(logpath, "a", encoding="utf-8") as f:
             f.write(s)
 
@@ -57,7 +57,7 @@ def run_variant(name, extra, processed, seeds, logdir, host):
                              encoding="utf-8", errors="replace", env={**os.environ, "PYTHONIOENCODING": "utf-8", "PYTHONUNBUFFERED": "1"})
         for line in p.stdout:
             write(line)
-            if "done" in line:                            # 단계 완료 줄은 셀 출력에도 보여 준다
+            if "done" in line:                            # also echo step-completion lines to the cell output
                 print(f"[{dt.datetime.now():%H:%M:%S}] {name}: {line.strip()}", flush=True)
         rc = p.wait()
         write(f"[{dt.datetime.now():%H:%M:%S}] exit {rc} ({(dt.datetime.now() - t0).seconds}s)\n")
@@ -77,12 +77,12 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("processed", type=Path)
     ap.add_argument("--only", nargs="*", default=None)
-    ap.add_argument("--seeds", type=int, default=1000, help="주 분석 반복 수")
+    ap.add_argument("--seeds", type=int, default=1000, help="number of runs for the main analysis")
     ap.add_argument("--seeds-variants", type=int, default=500,
-                    help="강건성 변형 반복 수 (묶음 20에서 Holm 유의가 가능한 최소는 400)")
+                    help="number of runs for robustness variants (400 is the minimum for Holm significance in a family of 20)")
     ap.add_argument("--workers", type=int, default=1,
-                    help="동시에 돌릴 변형 수. 변형 하나가 메모리 약 3GB → 노트북(7.7GB) 1, Colab(12GB) 2")
-    ap.add_argument("--host", default=socket.gethostname().split(".")[0][:20], help="로그 파일 이름용 장소 표시")
+                    help="variants to run at once. One variant needs about 3 GB of memory -> laptop (7.7 GB) 1, Colab (12 GB) 2")
+    ap.add_argument("--host", default=socket.gethostname().split(".")[0][:20], help="host label used in log file names")
     args = ap.parse_args()
     processed = args.processed.resolve()
     logdir = ROOT / "04_results" / "logs"
@@ -95,7 +95,7 @@ def main():
         for f in as_completed(futs):
             try:
                 print(f"[{dt.datetime.now():%H:%M:%S}] {f.result()}", flush=True)
-            except Exception as err:                      # 한 변형이 실패해도 나머지는 계속
+            except Exception as err:                      # keep going when one variant fails
                 print(f"[{dt.datetime.now():%H:%M:%S}] FAILED {err}", flush=True)
     print("all done", flush=True)
 

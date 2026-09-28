@@ -1,6 +1,6 @@
-"""표: 정제 전(T0)과 후(T1)의 '직계 자식이 많은 부모 모델' 순위 비교 → 04_results/tables/cleaning_effect_<snap>.tex
+"""Table: ranking of parent models with the most direct children before (T0) and after (T1) cleaning -> 04_results/tables/cleaning_effect_<snap>.tex
 
-분석 그래프와 같은 엣지 기준(스냅샷 안의 부모, 순환·시간 역전 제외)을 쓴다.
+Uses the same edge criteria as the analysis graph (parent in snapshot; cycles and temporally inverted edges excluded).
 """
 import argparse
 from pathlib import Path
@@ -30,8 +30,8 @@ def main():
     d["removed_pct"] = 100 * (1 - d["t1"] / d["t0"])
     d.to_csv(ROOT / "04_results" / "tables" / f"cleaning_effect_{snap}.csv")
 
-    # iterrows 는 행을 float 로 바꾸므로 열을 직접 순회하고 int 로 표기한다.
-    # 단 폭(3.5in)에 맞추려고 조직명은 빼고 모델명만 쓴다 (캡션에 명시). sdxl 은 이름이 길어 줄인다.
+    # iterrows casts rows to float, so iterate the columns directly and format as int.
+    # To fit the column width (3.5in), drop the organization and keep the model name (stated in the caption). sdxl is shortened because its name is long.
     short = {"stabilityai/stable-diffusion-xl-base-1.0": "stable-diffusion-xl-base"}
     rows = []
     for pid, t0, r0, t1, r1, rm in zip(d.index, d["t0"], d["rank0"], d["t1"], d["rank1"], d["removed_pct"]):

@@ -1,12 +1,12 @@
-"""raw 스냅샷(jsonl.gz) -> 노드/엣지 테이블 + 기초 통계.
+"""Raw snapshot (jsonl.gz) -> node/edge tables + basic statistics.
 
-출력 (02_data/processed/<snapshot>/):
-    nodes.parquet          모델 1행: 속성, 라이선스, 언어, 부모 수
+Output (02_data/processed/<snapshot>/):
+    nodes.parquet          one row per model: attributes, license, languages, parent count
     edges.parquet          parent -> child, relation, temporal_ok, parent_in_snapshot
     dataset_edges.parquet  dataset -> model
-    summary.json           파일럿 표에 쓸 기초 통계
+    summary.json           basic statistics for the pilot table
 
-사용:
+Usage:
     python build_graph.py ../../02_data/raw/hf_models_2026-09-25.jsonl.gz
 """
 import argparse
@@ -20,7 +20,7 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[2]
 RELATIONS = {"finetune", "adapter", "quantized", "merge"}
 
-# ISO 639-1. 3글자 언어 코드는 태그만으로 기술 태그와 구분이 어려워 제외 (한계로 명시)
+# ISO 639-1. Three-letter language codes are excluded: from tags alone they are hard to tell from technical tags (stated as a limitation)
 ISO639_1 = set("""aa ab ae af ak am an ar as av ay az ba be bg bh bi bm bn bo br bs ca ce ch co cr cs
 cu cv cy da de dv dz ee el en eo es et eu fa ff fi fj fo fr fy ga gd gl gn gu gv ha he hi ho hr ht
 hu hy hz ia id ie ig ii ik io is it iu ja jv ka kg ki kj kk kl km kn ko kr ks ku kv kw ky la lb lg
@@ -67,7 +67,7 @@ def main():
         for line in f:
             r = json.loads(line)
             mid = r["id"]
-            if mid in seen:      # 재개 시 경계 페이지 중복 방지
+            if mid in seen:      # skip duplicates from the boundary page after a resume
                 continue
             seen.add(mid)
             parents, lic, lang, ds = parse(r)
@@ -97,18 +97,18 @@ def main():
     E = pd.DataFrame(edges, columns=["parent_id", "child_id", "relation"])
     D = pd.DataFrame(dedges, columns=["dataset_id", "model_id"])
 
-    # 부모 ID 정규화: HF ID는 대소문자를 구분하지 않으므로 스냅샷의 실제 표기로 맞춘다
+    # Normalize parent IDs: HF IDs are case-insensitive, so map them to the spelling used in the snapshot
     canon = pd.Series(N["model_id"].to_numpy(), index=N["model_id"].str.lower())
     canon = canon[~canon.index.duplicated()]
     E["parent_id_declared"] = E["parent_id"]
     E["parent_id"] = E["parent_id"].str.lower().map(canon).fillna(E["parent_id"])
     E = E.drop_duplicates(["parent_id", "child_id"])
-    # 자기 자신을 부모로 선언한 엣지 제거 (메타데이터 오류)
+    # drop edges that declare the model as its own parent (metadata error)
     n_self = int((E["parent_id"] == E["child_id"]).sum())
     E = E[E["parent_id"] != E["child_id"]].reset_index(drop=True)
 
     created = N.set_index("model_id")["created_at"]
-    # 2022-03-02는 HF가 이전 저장소를 일괄 이관한 날짜라 실제 업로드 시각이 아니다
+    # 2022-03-02 is the day HF bulk-migrated older repositories, so it is not a real upload time
     legacy = created.dt.strftime("%Y-%m-%d").eq("2022-03-02")
     N["created_at_legacy"] = N["model_id"].map(legacy).to_numpy()
     E["parent_in_snapshot"] = E["parent_id"].isin(created.index)

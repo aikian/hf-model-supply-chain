@@ -1,23 +1,23 @@
-"""기반 모델 제거 시뮬레이션: Functional Option Loss (RQ2, RQ3).
+"""Base-model removal simulation: Functional Option Loss (RQ2, RQ3).
 
-정의
-    기능 옵션 o = (pipeline_tag, language, license_class)
-    M(G)       = 사용 가능한 모델이 1개 이상 제공하는 옵션 집합
-    제거 S_k   = 예산 k개의 기반 모델. 전염(contagion) 의미론: S의 후손 전체가 사용 불가
-                 (병합 모델은 부모 중 하나라도 제거되면 사용 불가)
+Definitions
+    functional option o = (pipeline_tag, language, license_class)
+    M(G)       = set of options provided by at least one usable model
+    removal S_k = budget of k base models. Contagion semantics: every descendant of S becomes unusable
+                 (a merge model is unusable if any of its parents is removed)
     FunctionalLoss(k) = |M(G)| - |M(G \\ closure(S_k))|
 
-전략
-    targeted : descendants | descendant_authors | downloads | outdegree   (상위 k개)
-               descendant_authors = 후손을 만든 서로 다른 계정 수 (대량 중복 업로드에 강건)
-    null     : random          후보(자식 ≥1) 중 무작위 k개
-               random_matched  표적 집합의 후손 수 분포(로그 구간)를 맞춘 무작위 k개
-                               → "크기"를 통제하고도 표적 제거가 더 치명적인지 본다
-    scenario : license:<class> 해당 라이선스 계열 모델 전체를 제거 (RQ3)
+Strategies
+    targeted : descendants | descendant_authors | downloads | outdegree   (top k)
+               descendant_authors = number of distinct accounts that created descendants (resists mass duplicate uploads)
+    null     : random          k random picks from the candidates (>= 1 child)
+               random_matched  k random picks matching the descendant-count distribution (log bins) of the target set
+                               -> tests whether targeted removal is still more damaging after controlling for "size"
+    scenario : license:<class> remove every model of that license class (RQ3)
 
-사용
+Usage
     python removal_sim.py ../../02_data/processed/2026-09-25 --k 1 5 10 50 100 --seeds 1000
-    ⚠ RR 원칙: Stage 1 승인 전에는 --sample(부분 그래프)로 파이프라인만 검증한다.
+    RR rule: before Stage 1 approval, only validate the pipeline with --sample (subgraph).
 """
 import argparse
 import json
@@ -30,8 +30,8 @@ import pandas as pd
 from scipy import sparse
 
 # ---------------------------------------------------------------- license classes
-# 라이선스 분류는 license_map.csv 에 83종을 하나씩 명시한다 (원고 부록 표와 동일).
-# 표에 없는 라이선스는 규칙식으로 추정하고 "other" 로 보수적으로 떨어뜨린다.
+# License classes: license_map.csv lists all 83 licenses explicitly (same as the appendix table in the manuscript).
+# Licenses not in the table are guessed by regex rules and otherwise fall back conservatively to "other".
 LICENSE_MAP = pd.read_csv(Path(__file__).with_name("license_map.csv")).set_index("license")
 LICENSE_RULES = [
     ("noncommercial", r"(^|-)nc(-|$)|non-?commercial|research|academic"),
@@ -41,9 +41,9 @@ LICENSE_RULES = [
     ("vendor_custom", r"llama|gemma|qwen|deepseek|mistral|falcon"),
     ("permissive", r"^apache|^mit$|^bsd|^cc-by-\d|^cc0|^unlicense|^afl|^zlib|^isc|^wtfpl|^artistic|^bsl-1"),
 ]
-# 원고 정의: 상업 이용 가능 = permissive, copyleft, RAIL, vendor-custom (조건부 포함).
-# no-derivatives 는 원본의 상업 이용은 허용하지만 파생물을 금지하므로 파생 옵션의 공급원이 될 수 없어 제외
-# (2026-09-26 수정: 이전에는 포함되어 원고 정의와 달랐다. analysis_changelog.md #4)
+# Manuscript definition: commercial use allowed = permissive, copyleft, RAIL, vendor-custom (conditional ones included).
+# no-derivatives allows commercial use of the original but forbids derivatives, so it cannot supply derived options; excluded
+# (fixed 2026-09-26: it was included before, which disagreed with the manuscript definition. analysis_changelog.md #4)
 COMMERCIAL_CLASSES = {"permissive", "copyleft", "responsible_ai", "vendor_custom"}
 
 
@@ -51,7 +51,7 @@ def license_class(lic):
     if not isinstance(lic, str) or not lic:
         return "unknown"
     lic = lic.lower()
-    if lic.startswith("override:"):          # enrich_attributes.py 가 license_overrides.csv 로 바로잡은 값
+    if lic.startswith("override:"):          # value corrected by enrich_attributes.py via license_overrides.csv
         return lic.split(":", 1)[1]
     if lic in LICENSE_MAP.index:
         return LICENSE_MAP.at[lic, "class"]
@@ -65,8 +65,8 @@ def license_class(lic):
 class Ecosystem:
     def __init__(self, nodes, edges, drop_temporal_violations=True, provider=None,
                  option_def="full", other_as_unknown=False, strict_commercial=False):
-        """provider: 기능 옵션 제공자로 셀 모델 마스크 (정제 tier). None이면 전체.
-        제외된 모델도 그래프에는 남아 전파 경로가 된다."""
+        """provider: mask of models counted as functional-option providers (cleaning tier). None = all models.
+        Excluded models stay in the graph and still act as propagation paths."""
         self.ids = nodes["model_id"].to_numpy()
         author = nodes["author"] if "author" in nodes else nodes["model_id"].str.split("/").str[0]
         self.author_code = pd.factorize(author)[0]
@@ -82,11 +82,11 @@ class Ecosystem:
         self.n = n
         self.children = sparse.csr_matrix((np.ones(len(p), dtype=np.int8), (p, c)), shape=(n, n))
         self.outdeg = np.asarray(self.children.sum(axis=1)).ravel()
-        # v2 (2026-09-26, 모의 심사 반영): 충격 두 종류
-        #   legal        : 라이선스 제약·취약점 상속 → 모든 후손에 전파 (기존 방식)
-        #   availability : 저장소 삭제 → 기반 가중치가 없으면 못 쓰는 '어댑터' 엣지로만 전파.
-        #                  파인튜닝·양자화·병합·미러는 가중치를 통째로 가지므로 살아남는다.
-        #                  지워진 모델에 지워지지 않은 미러가 있으면 어댑터도 미러로 대체되어 살아남는다.
+        # v2 (2026-09-26, after mock review): two shock types
+        #   legal        : license constraints / inherited vulnerabilities -> propagate to all descendants (original method)
+        #   availability : repository deletion -> propagate only over 'adapter' edges, which are unusable without the base weights.
+        #                  Fine-tunes, quantizations, merges and mirrors carry the full weights, so they survive.
+        #                  If a deleted model has a surviving mirror, its adapters fall back to the mirror and survive too.
         rel = e["relation"].to_numpy() if "relation" in e else np.full(len(e), "finetune", dtype=object)
         hard = rel == "adapter"
         self.hard_children = sparse.csr_matrix((np.ones(int(hard.sum()), dtype=np.int8), (p[hard], c[hard])),
@@ -97,10 +97,10 @@ class Ecosystem:
         self.provider = np.ones(n, dtype=bool) if provider is None else np.asarray(provider, dtype=bool)
         self.downloads = nodes["downloads_all"].fillna(nodes["downloads_30d"]).fillna(0).to_numpy() * self.provider
 
-        # 모델-옵션 쌍 (언어가 여러 개면 옵션도 여러 개)
+        # model-option pairs (a model with several languages yields several options)
         lang = nodes["languages"].fillna("unk").str.split(",")
         lic_cls = nodes["license"].map(license_class).to_numpy()
-        if other_as_unknown:                # 강건성: 'other/unspecified' 를 unknown 으로
+        if other_as_unknown:                # sensitivity check: map 'other/unspecified' to unknown
             lic_cls = np.where(lic_cls == "other", "unknown", lic_cls)
         opt = pd.DataFrame({
             "m": np.arange(n),
@@ -109,7 +109,7 @@ class Ecosystem:
             "lic": lic_cls,
         })[self.provider].explode("lang")
         self.license_class = lic_cls
-        if option_def == "coarse":          # 강건성: 언어 태그가 드물어 태스크 × 라이선스만
+        if option_def == "coarse":          # sensitivity check: language tags are sparse, so task x license only
             keys = opt["task"] + "|" + opt["lic"]
         else:
             keys = opt["task"] + "|" + opt["lang"] + "|" + opt["lic"]
@@ -122,10 +122,10 @@ class Ecosystem:
         commercial = {"permissive"} if strict_commercial else COMMERCIAL_CLASSES
         self.option_commercial = opt_lic.isin(commercial).to_numpy()
         self.option_class = opt_lic.to_numpy()
-        # v2 언어 와일드카드 (option_def="full"): 언어 태그가 없는 모델(unk)은 같은 (태스크, 라이선스)의
-        # 모든 언어 옵션을 대체할 수 있다고 본다. 언어 태그가 15%뿐이라, unk 를 별개 언어로 두면
-        # 태그 없는 영어 모델이 'en' 옵션의 대체재가 되지 못한다 (모의 심사 M2).
-        # option_def="strict" 는 v1 방식(unk 를 별개 값으로), "coarse" 는 태스크 × 라이선스.
+        # v2 language wildcard (option_def="full"): a model with no language tag (unk) is treated as a substitute for
+        # every language option of the same (task, license). Only 15% of models carry a language tag, so treating unk as
+        # a separate language would stop untagged English models from substituting for 'en' options (mock review M2).
+        # option_def="strict" is the v1 method (unk as a separate value); "coarse" is task x license.
         self.wildcard = option_def == "full"
         parts = pd.Series(self.option_names).str.split("|")
         if option_def == "coarse":
@@ -135,8 +135,8 @@ class Ecosystem:
             self.option_is_unk = (parts.str[1] == "unk").to_numpy()
             self.option_group = pd.factorize(parts.str[0] + "|" + parts.str[2])[0]
         self.n_groups = int(self.option_group.max()) + 1 if self.n_options else 0
-        # 탐색적 '품질 하락' 지표 준비 (2026-09-26, 결과를 본 뒤 추가 — 판정에 쓰지 않음):
-        # 옵션별 제공자를 다운로드 내림차순으로 정렬해 두고, 제거 후 남은 최선 제공자의 다운로드를 빠르게 찾는다.
+        # Exploratory 'quality degradation' metric (added 2026-09-26 after seeing results; not used for verdicts):
+        # sort each option's providers by downloads descending so the best remaining provider after removal is found quickly.
         dl_pair = self.downloads[self.pair_model]
         order = np.lexsort((-dl_pair, self.pair_option))
         self._sorted_pair = order
@@ -150,8 +150,8 @@ class Ecosystem:
         self.best_before = self._with_wildcard(self.best_before_spec)
 
     def _with_wildcard(self, best_spec):
-        """언어 와일드카드: 언어가 있는 옵션의 최선 제공자 = max(그 옵션, 같은 그룹의 언어 미상 옵션).
-        언어 미상 옵션 자신은 그룹 안 모든 옵션의 최선."""
+        """Language wildcard: best provider of a language-specific option = max(that option, the unk option of the same group).
+        The unk option itself takes the best over every option in its group."""
         if not self.wildcard:
             return best_spec
         g = self.option_group
@@ -162,13 +162,13 @@ class Ecosystem:
         return np.where(self.option_is_unk, grp_max[g], np.maximum(best_spec, unk_best))
 
     def degradation(self, removed_mask):
-        """남은 최선 제공자의 다운로드가 제거 전 최선의 몇 %인가 (탐색적)."""
+        """Downloads of the best remaining provider as a share of the best provider before removal (exploratory)."""
         rem_sorted = removed_mask[self.pair_model[self._sorted_pair]]
         big = len(rem_sorted)
         idx = np.where(rem_sorted, big, np.arange(big))
         first = np.minimum.reduceat(idx, np.minimum(self._opt_start, big - 1)) if big else np.zeros(0, int)
         first = np.where(self.providers > 0, first, big)
-        # 옵션의 구간 끝을 넘으면 남은 제공자가 없는 것
+        # past the end of the option's segment means no provider is left
         end = np.append(self._opt_start[1:], big)
         ok = first < end
         best_spec = np.where(ok, self._sorted_dl[np.minimum(first, big - 1)], 0.0)
@@ -184,9 +184,9 @@ class Ecosystem:
         }
 
     def reach(self, seeds, graph=None):
-        """seeds와 그 후손 전체의 인덱스 배열. 프런티어 확장이라 도달한 노드 수에만 비례한다
-        (scipy BFS는 호출마다 길이 n 배열을 만들어 후손이 적은 모델에도 O(n) 비용이 든다).
-        graph: 따라갈 엣지 (기본 전체 계보, availability 충격은 hard_children)."""
+        """Index array of seeds plus all their descendants. Frontier expansion, so cost scales only with the number of reached nodes
+        (scipy BFS allocates a length-n array per call, costing O(n) even for models with few descendants).
+        graph: edges to follow (default: full lineage; the availability shock uses hard_children)."""
         graph = self.children if graph is None else graph
         seen = np.zeros(self.n, dtype=bool) if not hasattr(self, "_seen") else self._seen
         self._seen = seen
@@ -201,7 +201,7 @@ class Ecosystem:
             lens = ends - starts
             if lens.sum() == 0:
                 break
-            # 각 프런티어 노드의 자식 구간을 한 번에 모은다
+            # gather the child segments of all frontier nodes at once
             offs = np.repeat(starts - np.concatenate(([0], np.cumsum(lens)[:-1])), lens)
             nxt = ix[np.arange(lens.sum()) + offs]
             nxt = np.unique(nxt[~seen[nxt]])
@@ -209,27 +209,27 @@ class Ecosystem:
             out.append(nxt)
             frontier = nxt
         res = np.concatenate(out)
-        seen[res] = False                     # 재사용 버퍼 초기화 (O(도달 수))
+        seen[res] = False                     # reset the reusable buffer (O(reached nodes))
         return res
 
     def closure(self, seeds, semantics="legal"):
-        """제거 집합 seeds 가 사용 불가로 만드는 모델 마스크.
-        legal: seeds + 모든 후손. availability: seeds + (미러가 남지 않은 seed 의) 어댑터 후손."""
+        """Mask of models made unusable by removing seeds.
+        legal: seeds + all descendants. availability: seeds + adapter descendants of seeds that have no surviving mirror."""
         seeds = np.unique(np.asarray(seeds, dtype=np.int64))
         mask = np.zeros(self.n, dtype=bool)
         if semantics == "legal":
             mask[self.reach(seeds)] = True
             return mask
         mask[seeds] = True
-        # 미러가 하나라도 제거 집합 밖에 남아 있으면 그 seed 의 어댑터는 미러로 대체된다
-        # (2026-09-27: seed 마다 돌던 파이썬 반복을 벡터 연산으로 바꿈. 결과는 같다 — test_closure_vectorized)
+        # if at least one mirror survives outside the removal set, that seed's adapters fall back to the mirror
+        # (2026-09-27: per-seed Python loop replaced by vector ops. Same result; see test_closure_vectorized)
         substituted = self._mirror_substituted(seeds, mask)
         hard_seeds = seeds[~substituted]
         mask[self.reach(hard_seeds, graph=self.hard_children)] = True
         return mask
 
     def _mirror_substituted(self, seeds, mask):
-        """seed 마다: 미러 자식 중 mask 밖에 남은 것이 하나라도 있는가."""
+        """Per seed: does at least one mirror child survive outside mask?"""
         if not len(seeds):
             return np.zeros(0, bool)
         ip, ix = self.mirror_children.indptr, self.mirror_children.indices
@@ -242,16 +242,16 @@ class Ecosystem:
         return np.bincount(seg, weights=(~mask[kids]).astype(float), minlength=len(seeds)) > 0
 
     def _mirror_substituted_reference(self, seeds, mask):
-        """벡터화 이전의 원래 구현 (검증용)."""
+        """Original implementation before vectorization (kept for verification)."""
         ip, ix = self.mirror_children.indptr, self.mirror_children.indices
         return np.array([bool((~mask[ix[ip[s]:ip[s + 1]]]).any()) for s in seeds], dtype=bool) \
             if len(seeds) else np.zeros(0, bool)
 
     def descendants_count(self, candidates):
-        """(후손 모델 수, 후손을 만든 서로 다른 계정 수). 자기 계정은 제외.
-        계정 수는 같은 계정의 대량 업로드(하이퍼파라미터 탐색, 채굴)에 흔들리지 않는다.
-        2026-09-26 수정: 기능 옵션 제공자(provider, 정제 tier)인 후손만 센다. 이전에는 정제에서 걸러 낸
-        봇 업로드까지 세어서 Qwen1.5-0.5B(후손 32,595 중 제공자 331) 같은 모델이 최상위 표적이 됐다."""
+        """(number of descendant models, number of distinct accounts that created them). Own account excluded.
+        The account count is not skewed by mass uploads from one account (hyperparameter sweeps, mining).
+        Fixed 2026-09-26: count only descendants that are providers (cleaning tier). Before, bot uploads removed by
+        cleaning were counted too, so models like Qwen1.5-0.5B (32,595 descendants, 331 providers) became top targets."""
         n_models, n_authors = [], []
         for s in candidates:
             d = self.reach([s])
@@ -262,9 +262,9 @@ class Ecosystem:
         return np.array(n_models), np.array(n_authors)
 
     def loss(self, removed_mask, removed_class=None):
-        """removed_class: 라이선스 전염 시나리오(RQ3)에서 지운 계열. 그 계열 자신의 옵션을 뺀
-        '부수 피해(collateral)' 손실을 따로 낸다. 지운 계열의 옵션이 사라지는 건 정의상 당연하므로
-        (동어반복), H3는 다른 라이선스를 가진 하위 옵션의 손실로 판정한다 (2026-09-26 수정)."""
+        """removed_class: the license class removed in the license-contagion scenario (RQ3). The loss excluding that
+        class's own options is reported separately as 'collateral'. Losing the removed class's own options holds by
+        definition (a tautology), so H3 is judged on lost downstream options that carry a different license (fixed 2026-09-26)."""
         gone = np.bincount(self.pair_option[removed_mask[self.pair_model]], minlength=self.n_options)
         rem = self.providers - gone
         if self.wildcard:
@@ -291,7 +291,7 @@ class Ecosystem:
             "pct_option_demand_lost": 100 * opt_dl[lost].sum() / max(opt_dl.sum(), 1),
             "pct_commercial_options_lost": 100 * (lost & self.option_commercial).sum()
                                            / max(self.option_commercial.sum(), 1),
-            "models_lost": int((removed_mask & self.provider).sum()),     # 제공자만 (2026-09-26 수정)
+            "models_lost": int((removed_mask & self.provider).sum()),     # providers only (fixed 2026-09-26)
             "models_lost_incl_flagged": int(removed_mask.sum()),
             "pct_downloads_lost": 100 * self.downloads[removed_mask].sum() / max(self.downloads.sum(), 1),
             **self.degradation(removed_mask),
@@ -305,15 +305,15 @@ LICENSE_SCENARIOS = ["noncommercial", "no_derivatives", "vendor_custom", "respon
 
 
 def single_closure_sizes(eco, cand, semantics, cand_desc):
-    """후보 하나만 지웠을 때 사용 불가가 되는 제공자 수 (규모 맞춤 대조군의 누적합용)."""
+    """Number of providers made unusable by removing a single candidate (for the cumulative sum in the size-matched null)."""
     if semantics == "legal":
         return cand_desc + eco.provider[cand].astype(int)
     return np.array([int((eco.closure([c], "availability") & eco.provider).sum()) for c in cand])
 
 
 def union_matched(rng, eco, cand, dsize, target_n, semantics, tol=0.95):
-    """제거되는 제공자 수(합집합)가 표적 전략과 같아질 때까지 무작위 후보를 더한다 (모의 심사 M3).
-    누적합으로 필요한 개수를 먼저 추정하고, 겹침 때문에 모자라면 15%씩 늘린다."""
+    """Add random candidates until the number of removed providers (union) matches the targeted strategy (mock review M3).
+    The count needed is first estimated from the cumulative sum; if overlap leaves it short, grow it by 15% per step."""
     perm = rng.permutation(len(cand))
     cs = np.cumsum(dsize[perm])
     m = int(np.searchsorted(cs, target_n)) + 1
@@ -327,8 +327,8 @@ def union_matched(rng, eco, cand, dsize, target_n, semantics, tol=0.95):
 
 
 def greedy_sequence(eco, pool, kmax, semantics):
-    """탐욕적 최대 손실: 매 단계 기능 옵션 손실을 가장 많이 늘리는 후보를 고른다 (lazy 평가).
-    손실 함수가 부분 모듈 함수가 아니어서 최적 보장은 없다. '공격자가 도달할 수 있는 수준'의 근사."""
+    """Greedy maximal loss: at each step pick the candidate that raises functional option loss the most (lazy evaluation).
+    The loss function is not submodular, so there is no optimality guarantee. An approximation of 'what an attacker could reach'."""
     import heapq
     base = np.zeros(eco.n, dtype=bool)
     cur = 0.0
@@ -338,7 +338,7 @@ def greedy_sequence(eco, pool, kmax, semantics):
     chosen, step = [], 0
     while heap and len(chosen) < kmax:
         neg, c, stamp = heapq.heappop(heap)
-        if stamp == step:                        # 최신 이득이면 채택
+        if stamp == step:                        # gain is up to date: accept
             chosen.append(c)
             base |= single[c]
             cur = eco.loss(base)["options_lost"]
@@ -360,8 +360,8 @@ def run(eco, ks, seeds, out_dir, semantics_list=SEMANTICS, greedy_pool=2000):
         "outdegree": cand[np.argsort(-eco.outdeg[cand], kind="stable")],
     }
     pool = np.unique(np.concatenate([rank["descendants"][:greedy_pool], rank["descendant_authors"][:greedy_pool]]))
-    # 단계별 중간 저장: Colab 세션이 끊겨도 끝난 (충격, k) 묶음은 다시 계산하지 않는다.
-    # 난수는 (seed, k, 전략) 로 고정되므로 이어서 계산해도 한 번에 계산한 결과와 같다.
+    # Save after each step: if the Colab session drops, finished (shock, k) blocks are not recomputed.
+    # Random streams are keyed by (seed, k, strategy), so a resumed run equals a single uninterrupted run.
     part = out_dir / f"_partial_s{seeds}"
     part.mkdir(parents=True, exist_ok=True)
     rows = []
@@ -393,12 +393,12 @@ def run(eco, ks, seeds, out_dir, semantics_list=SEMANTICS, greedy_pool=2000):
                              "removed_providers": tn, **eco.loss(mask)})
                 if name == "greedy":
                     continue
-                for s in range(seeds):             # 규모 맞춤 대조군 (전략마다 따로)
+                for s in range(seeds):             # size-matched null (separately per strategy)
                     rng = np.random.default_rng([s, k, len(name)])
                     mm, got, m = union_matched(rng, eco, cand, dsize, tn, sem)
                     rows.append({"semantics": sem, "k": k, "strategy": "random_matched", "seed": s,
                                  "matched_to": name, "removed_providers": got, "n_seeds_drawn": m, **eco.loss(mm)})
-            for s in range(seeds):                 # 균등 무작위 (참고용 기준선)
+            for s in range(seeds):                 # uniform random (reference baseline)
                 rng = np.random.default_rng([s, k])
                 rnd = rng.choice(cand, size=min(k, len(cand)), replace=False)
                 mask = eco.closure(rnd, sem)
@@ -406,10 +406,10 @@ def run(eco, ks, seeds, out_dir, semantics_list=SEMANTICS, greedy_pool=2000):
                              "removed_providers": int((mask & eco.provider).sum()), **eco.loss(mask)})
             tmp = part / f"{sem}_k{k}.csv.tmp"
             pd.DataFrame(rows[block_start:]).to_csv(tmp, index=False)
-            tmp.replace(part / f"{sem}_k{k}.csv")       # 다 쓴 뒤에 이름을 바꿔 반쯤 쓴 파일이 남지 않게
+            tmp.replace(part / f"{sem}_k{k}.csv")       # rename after writing so a half-written file is never left behind
             print(f"[{sem}] k={k} done", flush=True)
 
-    # RQ3: 라이선스 의무를 계보를 따라 적용 = 법적 충격 (해당 계열 모델과 모든 후손)
+    # RQ3: apply license obligations along the lineage = legal shock (models of that class plus all descendants)
     for cls in LICENSE_SCENARIOS:
         seeds_mask = (eco.license_class == cls) & eco.provider
         mask = eco.closure(np.flatnonzero(seeds_mask), "legal")
@@ -428,7 +428,7 @@ def run(eco, ks, seeds, out_dir, semantics_list=SEMANTICS, greedy_pool=2000):
 
 
 def estimate_runtime(eco, ks, seeds, n_variants=9, probe_candidates=2000, probe_sets=5):
-    """전체 실행 시간 추정. 손실 값은 계산만 하고 버린다 (RR: 결과를 보지 않음)."""
+    """Estimate the total run time. Loss values are computed and discarded (RR: results are not inspected)."""
     cand = np.flatnonzero((eco.outdeg > 0) & eco.provider)
     probe = cand[:probe_candidates]
     t = time.perf_counter(); eco.descendants_count(probe); t_desc = (time.perf_counter() - t) / len(probe)
@@ -454,34 +454,34 @@ def estimate_runtime(eco, ks, seeds, n_variants=9, probe_candidates=2000, probe_
 def add_common_args(ap):
     ap.add_argument("processed", type=Path)
     ap.add_argument("--tier", choices=["T0", "T1", "T2"], default="T1",
-                    help="옵션 제공자 정제 수준 (clean_models.py). 주 분석 T1")
+                    help="Provider cleaning tier (clean_models.py). Main analysis: T1")
     ap.add_argument("--sample", type=float, default=None,
-                    help="파일럿: 계정의 이 비율만 (계정 단위로 추출해 계보를 보존)")
-    # 강건성 점검 (사전 등록)
-    ap.add_argument("--declared-only", action="store_true", help="추론 엣지 제외")
-    ap.add_argument("--no-inherit", action="store_true", help="양자화·미러 속성 상속 끄기")
+                    help="Pilot: keep only this fraction of accounts (sampled per account to preserve lineages)")
+    # sensitivity checks (pre-registered)
+    ap.add_argument("--declared-only", action="store_true", help="Exclude inferred edges")
+    ap.add_argument("--no-inherit", action="store_true", help="Disable attribute inheritance for quantized and mirror models")
     ap.add_argument("--no-license-overrides", action="store_true",
-                    help="'other' 라이선스 재분류(license_overrides.csv) 끄기")
+                    help="Disable reclassification of 'other' licenses (license_overrides.csv)")
     ap.add_argument("--option", choices=["full", "strict", "coarse"], default="full",
-                    help="full = 태스크×언어×라이선스 (언어 없음 = 와일드카드), strict = v1 (언어 없음을 별개 값), "
-                         "coarse = 태스크×라이선스")
-    ap.add_argument("--exclude-quantized", action="store_true", help="양자화 모델을 제공자에서 제외")
+                    help="full = task x language x license (missing language = wildcard), strict = v1 (missing language as a separate value), "
+                         "coarse = task x license")
+    ap.add_argument("--exclude-quantized", action="store_true", help="Exclude quantized models from providers")
     ap.add_argument("--other-as-unknown", action="store_true")
-    ap.add_argument("--strict-commercial", action="store_true", help="상업 이용 = permissive 만")
+    ap.add_argument("--strict-commercial", action="store_true", help="Commercial use = permissive only")
     ap.add_argument("--keep-temporal-violations", action="store_true")
     ap.add_argument("--drop-rule", nargs="+", default=[],
                     choices=["f_bot", "f_course", "f_test", "f_boilerplate", "f_empty"],
-                    help="이 정제 규칙을 끈다 (그 규칙에만 걸린 모델을 제공자로 되돌림). "
-                         "사전에 정한 결정 규칙: 검증 정밀도 80%% 미만 규칙은 끄고 주 분석을 다시 돌린다")
+                    help="Disable these cleaning rules (models flagged only by them become providers again). "
+                         "Pre-set decision rule: a rule with validated precision below 80%% is disabled and the main analysis is rerun")
     ap.add_argument("--out", type=Path, default=None)
 
 
 def load_inputs(args):
-    """nodes, edges, provider mask, 결과 폴더 태그. 두 시뮬레이션 스크립트가 공유한다."""
+    """nodes, edges, provider mask, and the result-folder tag. Shared by both simulation scripts."""
     P = args.processed
     nodes = pd.read_parquet(P / "nodes.parquet")
     attr = P / "attributes.parquet"
-    if attr.exists() and not args.no_inherit:           # enrich_attributes.py 결과로 교체
+    if attr.exists() and not args.no_inherit:           # replace with the enrich_attributes.py output
         a = pd.read_parquet(attr, columns=["model_id", "task", "languages", "license", "license_no_override"])
         a["license"] = a.pop("license_no_override") if args.no_license_overrides else a["license"]
         a = a.drop(columns=["license_no_override"], errors="ignore")
@@ -496,7 +496,7 @@ def load_inputs(args):
         rules = ["f_bot", "f_boilerplate", "f_course", "f_test", "f_empty"]
         flags = pd.read_parquet(P / "model_flags.parquet", columns=["model_id", f"in_{args.tier}", *rules,
                                                                     "f_zero_downloads"])
-        if drop:                                          # T1 = 남은 규칙 어느 것에도 안 걸림 (clean_models.py 와 같은 정의)
+        if drop:                                          # T1 = flagged by none of the remaining rules (same definition as clean_models.py)
             keep = ~flags[[r for r in rules if r not in drop]].any(axis=1)
             flags[f"in_{args.tier}"] = keep & (~flags["f_zero_downloads"] if args.tier == "T2" else True)
             print(f"drop rule(s) {drop}: providers {int(keep.sum()):,} (before: {int(flags.shape[0] - flags[rules].any(axis=1).sum()):,})")
@@ -536,9 +536,9 @@ def main():
     add_common_args(ap)
     ap.add_argument("--k", type=int, nargs="+", default=[1, 5, 10, 50, 100])
     ap.add_argument("--seeds", type=int, default=1000,
-                    help="null 반복 수. 1,000 미만이면 Holm 보정 후 유의 판정이 불가능할 수 있다")
+                    help="Number of null draws. Below 1,000, significance after Holm correction may be unreachable")
     ap.add_argument("--estimate-runtime", action="store_true",
-                    help="실행 시간만 추정하고 결과는 저장·출력하지 않음 (RR 안전)")
+                    help="Only estimate the run time; results are neither saved nor printed (RR-safe)")
     args = ap.parse_args()
     eco, out = load_inputs(args)
     if args.estimate_runtime:

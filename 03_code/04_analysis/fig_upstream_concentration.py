@@ -1,11 +1,11 @@
-"""Fig. 2: 파생 모델의 상위 공급 조직 집중도 (기술 통계. 가설 검정 결과 아님).
+"""Fig. 2: concentration of upstream supplying companies for derived models (descriptive; not a hypothesis result).
 
-파생 모델 = T1 제공자 중 조상이 1개 이상 있는 모델.
-공급 조직 = 그 모델의 루트 계보를 올린 조직. 같은 회사의 HF 계정은 COMPANY 표로 묶는다.
-한 모델이 여러 회사 계보를 가질 수 있으므로(병합) 막대 합은 100%를 넘을 수 있다.
-누적선은 합집합 비율이다.
+Derived model = T1 provider with at least one ancestor.
+Supplying company = the organization that uploaded the model's root lineage. HF accounts of the same company are grouped by the COMPANY table.
+A model can descend from roots of several companies (merges), so the bars can sum to more than 100%.
+The cumulative line is the share of the union.
 
-출력: 04_results/figures/fig2_upstream_concentration.{pdf,png}, 04_results/tables/upstream_orgs.csv
+Output: 04_results/figures/fig2_upstream_concentration.{pdf,png}, 04_results/tables/upstream_orgs.csv
 """
 import argparse
 import sys
@@ -13,7 +13,7 @@ from pathlib import Path
 
 import matplotlib
 matplotlib.use("Agg")
-matplotlib.rcParams["pdf.fonttype"] = 42   # TrueType 내장 (IEEE PDF eXpress는 Type 3 거부)
+matplotlib.rcParams["pdf.fonttype"] = 42   # embed TrueType (IEEE PDF eXpress rejects Type 3)
 matplotlib.rcParams["ps.fonttype"] = 42
 import matplotlib.pyplot as plt
 import numpy as np
@@ -24,7 +24,7 @@ sys.path.insert(0, str(ROOT / "03_code" / "03_simulation"))
 from removal_sim import add_common_args, load_inputs  # noqa: E402
 from substitutability import model_roots  # noqa: E402
 
-# 같은 회사의 HF 계정 (HF가 이전 저장소를 조직 계정으로 옮기면서 생긴 별칭 포함)
+# HF accounts of the same company (including aliases created when HF moved legacy repos to organization accounts)
 COMPANY = {
     "meta-llama": "Meta", "facebook": "Meta", "FacebookAI": "Meta",
     "google": "Google", "google-bert": "Google", "google-t5": "Google",
@@ -59,7 +59,7 @@ def main():
     print(tab.to_string(index=False))
     print("derived T1 models:", n_der)
 
-    # 글자 7~7.5pt (본문 캡션 8pt에 맞춤). 폭 3.5in = 단 폭, 높이는 회사명 12줄 + 두 줄 x축 이름이 들어가게 2.8in
+    # 7-7.5pt text (matching the 8pt caption). Width 3.5in = column width; height 2.8in fits 12 company rows plus a two-line x label
     plt.rcParams.update({"font.family": "DejaVu Sans", "font.size": 7.5})
     fig, ax = plt.subplots(figsize=(3.5, 2.8))
     y = np.arange(TOP)[::-1]
@@ -67,7 +67,7 @@ def main():
     for yi, v in zip(y, top.values):
         ax.text(v + 0.4, yi, f"{v:.1f}%", va="center", ha="left", fontsize=7.0, color=INK)
     ax.set_yticks(y, top.index, fontsize=7.5)
-    ax.set_xlabel("Derived models descending\nfrom the company (%)", fontsize=7.5, linespacing=1.2)   # 한 줄(2.66in)은 축보다 길어 잘림
+    ax.set_xlabel("Derived models descending\nfrom the company (%)", fontsize=7.5, linespacing=1.2)   # a single line (2.66in) is wider than the axis and gets clipped
     ax.set_xlim(0, max(top.values) * 1.22)
     ax.set_xticks([t for t in range(0, 101, 5) if t <= max(top.values) * 1.22])
     ax.tick_params(axis="x", labelsize=7.0, length=2)
@@ -76,14 +76,14 @@ def main():
     for s in ["top", "right", "left"]:
         ax.spines[s].set_visible(False)
     ax.spines["bottom"].set_color("#9AA3AD")
-    # 누적 합집합 주석: 상위 5·10개 (줄을 짧게 나눠 아래쪽 짧은 막대의 값 라벨과 겹치지 않게)
+    # cumulative-union note for the top 5 and top 10 (short lines so it clears the value labels of the short bars below)
     note = (f"Top 5 companies: {cum[4]:.0f}%\nTop 10 companies: {cum[9]:.0f}%\n"
             f"of n = {n_der:,} derived models")
     txt = ax.text(0.97, 0.06, note, transform=ax.transAxes, ha="right", va="bottom", fontsize=7.0,
                   color=LINE, linespacing=1.35)
     fig.tight_layout(pad=0.2)
 
-    # 레이아웃 검사: 막대 값 라벨이 축 범위 안, 주석이 막대·값 라벨과 겹치지 않음
+    # layout check: value labels inside the axes; the note does not overlap bars or value labels
     fig.canvas.draw()
     r = fig.canvas.get_renderer()
     tb = txt.get_window_extent(r)

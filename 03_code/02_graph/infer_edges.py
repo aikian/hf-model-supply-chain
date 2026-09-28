@@ -1,21 +1,21 @@
-"""선언되지 않은 계보 엣지 추론 + 순환 제거.
+"""Infer undeclared lineage edges and remove cycles.
 
-입력  nodes.parquet, edges.parquet (build_graph.py 출력)
-출력  edges_all.parquet   선언 엣지 + 추론 엣지. 열: source ∈ {declared, inferred_mirror, inferred_name}
-                          in_cycle = True인 엣지는 분석에서 제외
+Input   nodes.parquet, edges.parquet (build_graph.py output)
+Output  edges_all.parquet   declared + inferred edges. Column source in {declared, inferred_mirror, inferred_name}
+                            edges with in_cycle = True are excluded from analysis
       inference_report.json
 
-추론 규칙 (보수적: 이름이 스냅샷 안에서 유일하게 대응될 때만)
-    inferred_name    RichardErkhov 양식 "<author>_-_<model>[-gguf|-4bits|-8bits|...]"
+Inference rules (conservative: only when the name maps uniquely inside the snapshot)
+    inferred_name    RichardErkhov format "<author>_-_<model>[-gguf|-4bits|-8bits|...]"
                      → <author>/<model>
-    inferred_mirror  부모를 선언하지 않았고, 이름(작성자 제외)이 자식 20개 이상인
-                     기반 모델의 이름과 정확히 같으며, 그 기반 모델보다 나중에 올라온 모델
-                     → 그 기반 모델을 부모로 (relation = "mirror")
-    inferred_quant   양자화 접미사(-GGUF, -AWQ, -GPTQ, -EXL2, -MLX, -Nbit, -bnb-4bit)가 붙었고
-                     부모 선언이 없으며, 접미사를 뗀 이름이 스냅샷에서 정확히 1개 모델에만 대응
-                     → 그 모델을 부모로 (relation = "quantized")
+    inferred_mirror  a model with no declared parent whose name (author stripped) exactly equals the name
+                     of a base model with 20+ children, and which was uploaded after that base model
+                     -> that base model as parent (relation = "mirror")
+    inferred_quant   a model with a quantization suffix (-GGUF, -AWQ, -GPTQ, -EXL2, -MLX, -Nbit, -bnb-4bit),
+                     no declared parent, and whose suffix-stripped name maps to exactly one model in the snapshot
+                     -> that model as parent (relation = "quantized")
 
-사용
+Usage
     python infer_edges.py ../../02_data/processed/2026-09-25
 """
 import argparse
@@ -43,8 +43,9 @@ def main():
                         columns=["model_id", "author", "created_at", "created_at_legacy", "n_parents"])
     e = pd.read_parquet(args.processed / "edges.parquet")
     e["source"] = "declared"
-    # 2026-09-26: 스냅샷에 없던 선언 부모 중 이름 변경·옛 ID·로컬 경로로 확인된 것을 실제 ID 로 다시 잇는다
-    # (resolve_missing_parents.py). 이전에는 이 자식들이 부모와 끊겨 독립 계보로 세어졌다.
+    # 2026-09-26: declared parents missing from the snapshot that were confirmed as renamed / old IDs / local paths
+    # are reconnected to their real IDs (resolve_missing_parents.py). Before, these children were cut off from their
+    # parents and counted as independent lineages.
     e["parent_resolution"] = None
     rp = args.processed / "missing_parents_resolved.csv"
     if rp.exists():
@@ -60,9 +61,9 @@ def main():
         e = e[e["parent_id"] != e["child_id"]].drop_duplicates(["parent_id", "child_id"])
         created0 = n.set_index("model_id")["created_at"]
         legacy0 = n.set_index("model_id")["created_at_legacy"]
-        # 다시 이은 엣지는 시간 판정을 하지 않는다 (NA): 연결된 저장소의 생성 시각은 원본의 업로드 시각이 아니다.
-        # 예) runwayml/stable-diffusion-v1-5 → stable-diffusion-v1-5/stable-diffusion-v1-5 는 원본이 사라진 뒤
-        # 만든 재배포 저장소라 생성 시각이 늦다. 시간 판정을 하면 2,540개 엣지가 '시간 역전'으로 빠져 재연결이 무효가 된다.
+        # Reconnected edges get no temporal check (NA): the linked repository's creation time is not the original's upload time.
+        # E.g. runwayml/stable-diffusion-v1-5 -> stable-diffusion-v1-5/stable-diffusion-v1-5 is a redistribution created after
+        # the original vanished, so it is dated later. With the check, 2,540 edges would drop as 'time reversed', voiding the reconnection.
         h = e["parent_resolution"].notna()
         e.loc[h, "temporal_ok"] = pd.NA
         print(f"reconnected {int(h.sum()):,} declared edges via name resolution "
@@ -75,13 +76,13 @@ def main():
     created = n.set_index("model_id")["created_at"]
     orphan = n["n_parents"].eq(0)
 
-    # name_low -> 모델 목록 (유일성 판정용)
+    # name_low -> model list (for uniqueness checks)
     name_low = name.str.lower()
     name_count = name_low.value_counts()
 
     inferred = []
 
-    # 1) RichardErkhov 양식
+    # 1) RichardErkhov format
     m = n["author"].eq("RichardErkhov") & orphan
     parts = name[m].str.extract(r"^(?P<a>.+?)_-_(?P<b>.+)$")
     base = parts["b"].str.replace(QUANT_SUFFIX, "", regex=True)
@@ -90,11 +91,11 @@ def main():
     inferred.append(pd.DataFrame({"parent_id": cand[ok].to_numpy(), "child_id": n.loc[m, "model_id"][ok].to_numpy(),
                                   "relation": "quantized", "source": "inferred_name"}))
 
-    # 2) 미러
+    # 2) mirrors
     outdeg = e[e["parent_in_snapshot"]].groupby("parent_id").size()
     popular = outdeg[outdeg >= MIRROR_MIN_CHILDREN].index
     pop = pd.DataFrame({"parent_id": popular, "nl": pd.Series(popular).str.split("/", n=1).str[1].str.lower()})
-    pop = pop[pop["nl"].map(pop["nl"].value_counts()).eq(1)]          # 같은 이름의 인기 모델이 여럿이면 모호 → 제외
+    pop = pop[pop["nl"].map(pop["nl"].value_counts()).eq(1)]          # several popular models sharing a name are ambiguous -> excluded
     pmap = pop.set_index("nl")["parent_id"]
     m = orphan & name_low.isin(pmap.index) & ~n["model_id"].isin(popular)
     par = name_low[m].map(pmap)
@@ -103,12 +104,12 @@ def main():
     inferred.append(pd.DataFrame({"parent_id": par[later].to_numpy(), "child_id": ch.to_numpy(),
                                   "relation": "mirror", "source": "inferred_mirror"}))
 
-    # 3) 양자화 접미사
+    # 3) quantization suffix
     done = set(pd.concat(inferred)["child_id"])
     has_q = name.str.contains(QUANT_SUFFIX, regex=True)
     m = orphan & has_q & ~n["model_id"].isin(done)
     stripped = name[m].str.replace(QUANT_SUFFIX, "", regex=True).str.lower()
-    uniq = stripped.map(name_count).eq(1)                              # 스냅샷에서 이름이 유일
+    uniq = stripped.map(name_count).eq(1)                              # name is unique in the snapshot
     nl_to_id = pd.Series(n["model_id"].to_numpy(), index=name_low)
     nl_to_id = nl_to_id[~nl_to_id.index.duplicated(keep=False)]
     par = stripped[uniq].map(nl_to_id)
@@ -126,7 +127,7 @@ def main():
     inf["temporal_ok"] = (pc <= cc)
     allE = pd.concat([e, inf], ignore_index=True).drop_duplicates(["parent_id", "child_id"])
 
-    # 4) 순환: 강연결요소(크기 ≥ 2) 안의 엣지는 분석에서 제외
+    # 4) cycles: edges inside a strongly connected component (size >= 2) are excluded from analysis
     idx = pd.Series(np.arange(len(n)), index=n["model_id"])
     inside = allE[allE["parent_in_snapshot"]]
     A = sparse.csr_matrix((np.ones(len(inside)), (idx[inside["parent_id"]].to_numpy(),

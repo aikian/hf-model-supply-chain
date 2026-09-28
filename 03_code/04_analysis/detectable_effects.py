@@ -1,10 +1,10 @@
-"""H2 검정이 잡아낼 수 있었던 최소 초과 손실 (심사 대응: '유의하지 않음'이 무엇을 배제하는가).
+"""Smallest excess loss the H2 tests could have detected (review response: what a non-significant result rules out).
 
-각 검정 (충격, k, 전략) 에서 Holm 첫 단계(p ≤ α/20)를 통과하는 가장 작은 관측 손실을 구하고,
-대조군 평균과의 차이(최소 검출 초과 손실)를 옵션 수와 비율로 보고한다. 관측값 − 대조군 평균도 함께.
+For each test (shock, k, strategy), find the smallest observed loss that passes the first Holm step (p ≤ α/20),
+and report its difference from the null mean (minimum detectable excess loss) in option counts and as a share. Observed minus null mean is reported too.
 
-사용: python detectable_effects.py ../../04_results/tables/2026-09-25_full_main_notest
-출력: <dir>/detectable_effects.csv, 요약 출력
+Usage: python detectable_effects.py ../../04_results/tables/2026-09-25_full_main_notest
+Output: <dir>/detectable_effects.csv, summary printed to stdout
 """
 import argparse
 from pathlib import Path

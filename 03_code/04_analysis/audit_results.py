@@ -1,19 +1,19 @@
-"""전체 실행 결과 점검: 빠진 것·꼬인 것·설정 불일치를 찾는다. 문제마다 한 줄씩 출력하고, 마지막에 요약.
+"""Audit of all run results: find missing, inconsistent, or misconfigured outputs. One line per problem, then a summary.
 
-점검 항목 (변형마다)
-  A 파일      필수 결과 파일이 모두 있는가
-  B 설정      run_config.json 의 옵션이 변형 이름과 맞는가 (seeds, k, 변형 플래그)
-  C 행 수     (충격, k, 전략) 마다 표적 1행, 규모 맞춤 대조군 = seeds 행, 균등 무작위 = seeds 행, 라이선스 시나리오 5행
-  D 중복      같은 (충격, k, 전략, 비교 대상, seed) 가 두 번 나오지 않는가 (이어서 계산한 실행 확인)
-  E 결측·범위 핵심 지표에 NaN 없음, 비율 0–100, 손실 ≤ 전체 옵션
-  F 대조군 크기 규모 맞춤 대조군의 제거 제공자 수가 표적의 95% 이상인가
-  G 단조성    탐욕 손실이 k 에 따라 줄지 않는가, 표적 전략의 제거 수가 k 에 따라 줄지 않는가
-  H 검정      h2_tests 가 충격마다 20행, Holm 조정 p ≥ 원 p, 판정 JSON 과 h2_tests 가 일치
-  I RQ1       substitutability 의 옵션 수 = 제거 시뮬레이션의 전체 옵션 수, 고립 제외·구조 묶음 ≤ 기본 계보 수
-  J 로그      마지막 실행의 세 단계가 모두 exit 0
-  K 변형 효과 변형의 제공자 수·옵션 수가 기준과 예상대로 다른가
+Checks (per variant)
+  A files      all required result files exist
+  B config     run_config.json options match the variant name (seeds, k, variant flags)
+  C row counts per (shock, k, strategy): 1 target row, matched null = seeds rows, uniform random = seeds rows, 5 license-scenario rows
+  D duplicates no (shock, k, strategy, matched_to, seed) appears twice (catches resumed runs)
+  E NaN/range  no NaN in key metrics, percentages within 0-100, options lost <= total options
+  F null size  the matched null removes at least 95% as many providers as the target
+  G monotone   greedy loss does not decrease with k; targeted strategies' removal counts do not decrease with k
+  H tests      h2_tests has 20 rows per shock, Holm-adjusted p >= raw p, verdict JSON agrees with h2_tests
+  I RQ1        option count in substitutability = total options in the removal simulation; isolated-excluded and architecture-grouped lineages <= base lineages
+  J logs       all three stages of the last run exited 0
+  K variant    provider and option counts of each variant differ from main in the expected direction
 
-사용: python audit_results.py
+Usage: python audit_results.py
 """
 import json
 import re
@@ -28,7 +28,7 @@ LOGS = ROOT / "04_results" / "logs"
 SNAP = "2026-09-25"
 KS = [1, 5, 10, 50, 100]
 TARGETED = ["descendants", "descendant_authors", "downloads", "outdegree"]
-# 변형 → (장소, seeds, run_config 에서 기대하는 값)
+# variant -> (host, seeds, expected run_config values)
 EXPECT = {
     "main": ("laptop", 1000, {}),
     "main_notest": ("laptop", 1000, {"drop_rule": ["f_test"]}),
@@ -178,7 +178,7 @@ def main():
         all_issues[name] = issues
         rows.append({"variant": name, **info, "issues": len(issues)})
     t = pd.DataFrame(rows).set_index("variant")
-    # K: 변형 효과 (기준 = 원래 T1)
+    # K: variant effects (baseline = original T1)
     if "main" in t.index:
         b = t.loc["main"]
         checks = {"tierT0": ("providers", ">"), "tierT2": ("providers", "<"), "main_notest": ("providers", ">"),

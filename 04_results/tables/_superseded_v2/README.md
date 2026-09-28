@@ -1,5 +1,7 @@
-# 3차 실행(설계 v2, 2026-09-26 09:38–12:13) — 폐기
+# Superseded third run (design v2, 2026-09-26 09:38–12:13)
 
-주 분석, keeptv, noquant 는 끝까지 돌았고 coarse, strictlang 은 중간에 멈췄다.
-폐기 이유: 선언된 부모 중 이름 변경·옛 ID·로컬 경로로 끊겨 있던 5,820개 엣지를 다시 이었고(analysis_changelog.md),
-품질 하락 지표와 구조 기반 RQ1 하한을 추가해 모든 변형을 다시 돌린다. 결론 비교용으로 보존한다.
+Stage: revised exploratory analysis, before the pre-submission changes (D9–D11 in the paper).
+
+The main analysis, keeptv, and noquant ran to completion; coarse and strictlang were stopped midway.
+Reason for superseding: 5,820 declared-parent edges that had been broken by renames, old IDs, or local paths were reconnected (`analysis_changelog.md`),
+and the degradation (download-prominence) measure and the architecture-grouped RQ1 lower bound were added, so all variants were rerun. Kept for comparing conclusions.

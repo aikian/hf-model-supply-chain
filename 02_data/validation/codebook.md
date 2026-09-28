@@ -1,49 +1,49 @@
-# 판정 기준서 (논문용 검증)
+# Labeling codebook (validation for the paper)
 
-판정은 **저자 1인**이 하고, 신뢰도는 같은 기준서를 받은 **독립 LLM 판정자**와의 κ로 잰다 (2026-09-26 결정: 2주 뒤 자기 재판정은 하지 않는다). 최종 판정은 저자의 것이다. 모델 페이지(huggingface.co/<id>)와 파일 목록을 보고 판정한다.
-각 모델이 **어떤 규칙에 걸렸는지는 판정자에게 보여 주지 않는다.**
+Labels are assigned by **the author alone**; reliability is measured as κ against an **independent LLM labeler** given the same codebook (decision of 2026-09-26: no self-relabeling after two weeks). The final labels are the author's. Labeling is based on the model page (huggingface.co/<id>) and the file list.
+**The labeler is not shown which rule flagged each model.**
 
-## 판정 질문
-> 이 저장소는 다른 사람이 가져다 쓸 수 있는 **독립적인 모델 공급원**인가?
+## Labeling question
+> Is this repository an **independent model supplier** that someone else could take and use?
 
-| 값 | 의미 |
+| Value | Meaning |
 |---|---|
-| **1 = 산출물 (artifact)** | 아래 A~D 중 하나에 해당 |
-| **0 = 실제 공급원 (genuine)** | 목적이 있는 모델. 품질이나 인기와 무관 |
-| **9 = 판단 불가** | 페이지가 비어 있거나 삭제됨. 분석에서 제외하고 개수만 보고 |
+| **1 = artifact** | Falls under one of types A–D below |
+| **0 = genuine (an actual supplier)** | A model with a purpose. Quality and popularity do not matter |
+| **9 = undecidable** | Page is empty or deleted. Excluded from the analysis; only the count is reported |
 
-## 산출물 유형
-- **A. 자동 업로드:** 보상·채굴·대회 시스템이 기계적으로 만든 저장소
-  - 이름에 타임스탬프, UUID, 무작위 ID가 있다
-  - 같은 계정에 거의 같은 저장소가 대량으로 있다
-- **B. 강의 과제:** 공개 강의나 튜토리얼의 과제 제출물 (예: Deep RL 강의의 `ppo-LunarLander-v2`, HF 강의의 `bert-finetuned-ner`)
-- **C. 튜토리얼 기본 이름:** 튜토리얼 코드의 기본 출력 이름을 그대로 쓴 저장소 (`my_awesome_model`, `results`, `test-trainer`)
-- **D. 테스트·임시:** 업로드 시험, 디버그, 임시 저장소
+## Artifact types
+- **A. Automated upload:** a repository produced mechanically by a reward, mining, or competition system
+  - the name contains a timestamp, UUID, or random ID
+  - the same account holds a large number of near-identical repositories
+- **B. Course assignment:** an assignment submission for a public course or tutorial (e.g., `ppo-LunarLander-v2` from the Deep RL course, `bert-finetuned-ner` from the HF course)
+- **C. Tutorial default name:** a repository that kept the default output name of tutorial code as is (`my_awesome_model`, `results`, `test-trainer`)
+- **D. Test / temporary:** upload trials, debugging, temporary repositories
 
-## 헷갈리는 경우
-| 경우 | 판정 | 이유 |
+## Borderline cases
+| Case | Label | Reason |
 |---|---|---|
-| 연구 실험의 체크포인트나 하이퍼파라미터 탐색 결과 (이름이 기계적이어도) | 0 | 연구 목적의 실제 모델 |
-| 원본을 그대로 재업로드한 미러 | 0 | 공급원이긴 하다. 미러 여부는 별도 규칙(추론 엣지)으로 처리 |
-| 대량 양자화 배포자 (mradermacher, TheBloke 등) | 0 | 실제로 쓰이는 배포본 |
-| 강의 과제지만 모델 카드와 평가가 충실함 | 1 | 유형 B 우선 |
-| 이름에 "demo"가 있지만 실제 파인튜닝 결과 | 0 | |
-| 모델 카드가 비어 있지만 가중치와 설정 파일이 정상 | 0 | 메타데이터가 부족할 뿐 |
+| Checkpoints or hyperparameter-search outputs of a research experiment (even with mechanical names) | 0 | Actual models built for research |
+| A mirror that re-uploads the original unchanged | 0 | Still a supplier. Mirror status is handled by a separate rule (inferred edges) |
+| Bulk quantization distributors (mradermacher, TheBloke, etc.) | 0 | Distributions that are actually used |
+| A course assignment, but with a thorough model card and evaluation | 1 | Type B takes precedence |
+| "demo" in the name, but an actual fine-tuning result | 0 | |
+| Empty model card, but weights and config files are in order | 0 | Only the metadata is missing |
 
-## 보완 규칙 (2026-09-26 추가)
-LLM 판정 과정에서 드러난 모호함 7가지를 **저자 판정 전에** 명시했다. 원고에 이 사실을 밝힌다.
+## Supplementary rules (added 2026-09-26)
+Seven ambiguities that surfaced during the LLM labeling were made explicit **before the author's labeling**. The manuscript states this.
 
-| # | 경우 | 판정 |
+| # | Case | Label |
 |---|---|---|
-| S1 | 저장소가 비어 있지만(`.gitattributes`만, 또는 빈 README) **이름이나 계정 패턴으로 유형이 분명함** (UUID 대량 계정, `test`, `my_awesome_*`, 강의 과제 이름 등) | **1** + 해당 유형. 유형을 알 수 없으면 **9** |
-| S2 | 이름에 "test"가 있지만, 목적이 분명한 파인튜닝이거나 이름 있는 모델 계열의 사전 공개판 (예: `xls-r-hi-test`, `…-Fusion-test0`) | **0** |
-| S2' | 이름에 "test"가 있고 일반적인 시험 실행 (예: `…-ft-test3`, `Qwen2-0.5B-GRPO-test`) | **1-D** |
-| S3 | 이름이 기계적(해시, 타임스탬프, job ID)이지만 **모델 카드나 계정에 연구 맥락**이 있음 | **0** (연구 체크포인트) |
-| S3' | 이름이 기계적이고 **보상·채굴·대회 시스템의 흔적**이 있음 (Gensyn, Bittensor, subnet, 대회 계정 등) | **1-A** |
-| S4 | 강의 과제 이름(HF 강의·Deep RL 강의 등의 지정 이름) | **1-B**. 튜토리얼 **코드의 기본 출력 이름**(`results`, `test-trainer`, `lora_model`)이면 **1-C**. 둘 다 해당하면 B |
-| S5 | 모델이 아닌 저장소 (코드만, 이미지만, 토크나이저만) | **1-D** |
-| S6 | 대량 양자화 배포자의 **가중치가 없는** 저장소: README 가 있으면 **0**, 완전히 비었으면 **9** | 0 / 9 |
-| S7 | 남의 모델·체크포인트를 그대로 다시 올린 개인 보관용 저장소 (civitai LoRA 재게시, 음성 모델 zip 모음 등) | **0** (미러와 같게 봄) |
+| S1 | Repository is empty (only `.gitattributes`, or an empty README) but **the type is evident from the name or account pattern** (bulk UUID accounts, `test`, `my_awesome_*`, course assignment names, etc.) | **1** + the corresponding type. **9** if the type cannot be determined |
+| S2 | Name contains "test", but it is a fine-tune with a clear purpose or a pre-release of a named model family (e.g., `xls-r-hi-test`, `…-Fusion-test0`) | **0** |
+| S2' | Name contains "test" and it is an ordinary trial run (e.g., `…-ft-test3`, `Qwen2-0.5B-GRPO-test`) | **1-D** |
+| S3 | Name is mechanical (hash, timestamp, job ID), but **the model card or account shows a research context** | **0** (research checkpoint) |
+| S3' | Name is mechanical and there are **traces of a reward, mining, or competition system** (Gensyn, Bittensor, subnet, competition accounts, etc.) | **1-A** |
+| S4 | Course assignment name (a name assigned by the HF course, Deep RL course, etc.) | **1-B**. If it is the **default output name of tutorial code** (`results`, `test-trainer`, `lora_model`), **1-C**. If both apply, B |
+| S5 | Repository that is not a model (code only, images only, tokenizer only) | **1-D** |
+| S6 | Repository of a bulk quantization distributor **without weights**: **0** if it has a README, **9** if completely empty | 0 / 9 |
+| S7 | Personal-archive repository that re-uploads someone else's model or checkpoint as is (re-posted civitai LoRAs, zip collections of voice models, etc.) | **0** (treated like a mirror) |
 
-## 기록 칸
+## Record fields
 `model_id, rater, label(1/0/9), type(A/B/C/D/-), note`

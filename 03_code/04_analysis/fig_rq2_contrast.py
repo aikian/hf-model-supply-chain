@@ -1,14 +1,14 @@
-"""Fig: RQ2 — 모델 손실 대 기능 손실을 같은 단위(%)의 로그 축에 그린다. 대각선 y = x 는 '모델이 사라지는 만큼 기능도
-사라지는' 기준선이고, 점이 대각선에서 아래로 멀수록 기능이 모델보다 덜 사라진다.
+"""Fig: RQ2 — model loss vs. functional loss on log axes in the same unit (%). The diagonal y = x is the
+'options vanish as fast as models' reference line; the further a point sits below it, the less functionality is lost per model.
 
-x = 사용 불가가 된 제공자 비율 (% of T1-main models, 로그)
-y = 제공자가 하나도 남지 않은 기능 옵션 비율 (% of options, 로그). 손실 0 은 아래쪽 띠에 표시.
-점: 표적 전략 4개 × k 5개. 채운 점 = 법적 충격(최대 전파), 빈 점 = 가용성 충격. 검은 점선: 탐욕적 참고선.
-점 뒤의 연회색 세로선: 같은 x 에 맞춘 대조군(제공자 수 일치 무작위 제거)의 5–95% 범위. 수치 비교는 표 5.
+x = share of providers made unavailable (% of T1-main models, log)
+y = share of functional options with no provider left (% of options, log). Zero loss is drawn in the band at the bottom.
+Points: 4 targeted strategies x 5 k. Filled = legal shock (maximal propagation), hollow = availability shock. Black dotted line: greedy reference.
+Light gray vertical bar behind each point: 5-95% range of the matched null (random removal with the same provider count) at the same x. Numbers are in Table 5.
 
-색: dataviz 기준 팔레트 1–4번 (validate_palette.js 통과). 대비가 낮은 청록·노랑은 모양과 범례로 보완.
-출력: 04_results/figures/fig_rq2_contrast.{pdf,png} (+ _gray.png)
-사용: python fig_rq2_contrast.py ../../04_results/tables/2026-09-25_full_main_notest --providers 1656701
+Colors: dataviz base palette 1-4 (passes validate_palette.js). The low-contrast teal and yellow are backed up by marker shape and the legend.
+Output: 04_results/figures/fig_rq2_contrast.{pdf,png} (+ _gray.png)
+Usage: python fig_rq2_contrast.py ../../04_results/tables/2026-09-25_full_main_notest --providers 1656701
 """
 import argparse
 from pathlib import Path
@@ -27,14 +27,14 @@ ROOT = Path(__file__).resolve().parents[2]
 STRAT = [("descendants", "descendants", "#2a78d6", "o"), ("descendant_authors", "descendant accounts", "#eb6834", "s"),
          ("downloads", "downloads", "#1baf7a", "^"), ("outdegree", "out-degree", "#eda100", "D")]
 INK, MUTED, GRID = "#0b0b0b", "#52514e", "#e6e5e1"
-FLOOR = 0.002                       # 손실 0 을 그릴 높이 (% of options)
+FLOOR = 0.002                       # height at which zero loss is drawn (% of options)
 plt.rcParams.update({"font.family": "DejaVu Sans", "font.size": 7.0})
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("result_dir", type=Path)
-    ap.add_argument("--providers", type=int, required=True, help="T1-main 제공자 수")
+    ap.add_argument("--providers", type=int, required=True, help="number of T1-main providers")
     args = ap.parse_args()
     d = pd.read_csv(args.result_dir / "removal_results.csv")
     n_prov = args.providers
@@ -53,7 +53,7 @@ def main():
             o = g[g["strategy"] == s].sort_values("k")
             x = 100 * o["removed_providers"].to_numpy() / n_prov
             y = np.where(o["pct_options_lost"].to_numpy() > 0, o["pct_options_lost"].to_numpy(), FLOOR)
-            for kk, xx in zip(o["k"], x):          # 대조군은 제공자 수를 맞췄으므로 같은 x 에 그린다
+            for kk, xx in zip(o["k"], x):          # the null matches the provider count, so draw it at the same x
                 n = g[(g["strategy"] == "random_matched") & (g["matched_to"] == s) & (g["k"] == kk)]["pct_options_lost"]
                 ax.plot([xx, xx], [max(n.quantile(0.05), FLOOR), max(n.quantile(0.95), FLOOR)], color="#cfcec9",
                         lw=1.4, solid_capstyle="butt", zorder=1.5)
@@ -68,7 +68,7 @@ def main():
     ax.set_yscale("log")
     ax.set_xlim(1e-5, 60)
     ax.set_ylim(FLOOR / 2.2, 6)
-    fig.canvas.draw()                                     # 선의 화면상 기울기에 맞춰 이름표를 돌린다
+    fig.canvas.draw()                                     # rotate each label to the on-screen slope of its line
     def label_line(x, f, text, dy=1.7):
         p1 = ax.transData.transform((x, x * f)); p2 = ax.transData.transform((x * 2, x * 2 * f))
         ang = np.degrees(np.arctan2(p2[1] - p1[1], p2[0] - p1[0]))

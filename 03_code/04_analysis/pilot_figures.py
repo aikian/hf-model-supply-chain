@@ -1,11 +1,11 @@
-"""RR Stage 1 파일럿 그림/표 (기술 통계만: 가설 검정 결과는 포함하지 않음).
+"""RR Stage 1 pilot figures and table (descriptive only; no hypothesis results).
 
-출력 (04_results/figures, 04_results/tables):
-    fig_outdegree_ccdf.{pdf,png}      기반 모델의 직계 자식 수 분포 (log-log CCDF), 정제 전(T0) vs 후(T1)
-    fig_relations_by_year.{pdf,png}   연도별 새 계보 엣지의 관계 유형 (T1 자식 기준)
-    pilot_table_<snap>.tex            논문 파일럿 표 (LaTeX)
+Output (04_results/figures, 04_results/tables):
+    fig_outdegree_ccdf.{pdf,png}      distribution of direct children per base model (log-log CCDF), before (T0) vs. after (T1) cleaning
+    fig_relations_by_year.{pdf,png}   relation types of new lineage edges per year (T1 children)
+    pilot_table_<snap>.tex            pilot table for the paper (LaTeX)
 
-사용
+Usage
     python pilot_figures.py ../../02_data/processed/2026-09-25
 """
 import argparse
@@ -14,7 +14,7 @@ from pathlib import Path
 
 import matplotlib
 matplotlib.use("Agg")
-matplotlib.rcParams["pdf.fonttype"] = 42   # TrueType 내장 (IEEE PDF eXpress는 Type 3 거부)
+matplotlib.rcParams["pdf.fonttype"] = 42   # embed TrueType (IEEE PDF eXpress rejects Type 3)
 matplotlib.rcParams["ps.fonttype"] = 42
 import matplotlib.pyplot as plt
 import numpy as np
@@ -23,7 +23,7 @@ from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[2]
 INK, MUTED, GRID = "#1F2328", "#57606A", "#E5E7EB"
-# 관계 유형: 흑백에서도 구분되도록 밝기 차이가 큰 순서 + 무늬
+# relation types: ordered by large lightness steps, plus hatching, so they stay distinct in grayscale
 REL_ORDER = ["finetune", "adapter", "quantized", "merge", "other"]
 REL_LABEL = {"finetune": "fine-tune", "adapter": "adapter", "quantized": "quantized", "merge": "merge", "other": "mirror / other"}
 REL_COLOR = {"finetune": "#23395B", "adapter": "#5C7FA8", "quantized": "#A9C1DB", "merge": "#D9824B", "other": "#EFE3D0"}
@@ -32,7 +32,7 @@ plt.rcParams.update({"font.family": "DejaVu Sans", "font.size": 6.2, "hatch.line
 
 
 def check_layout(fig, extra=()):
-    """모든 글자(축 제목, 눈금, 범례, 주석)가 그림 안에 있는지, 범례가 데이터와 겹치지 않는지 검사."""
+    """Check that all text (axis labels, ticks, legend, notes) is inside the figure and the legend does not overlap data."""
     fig.canvas.draw()
     r = fig.canvas.get_renderer()
     fb = fig.bbox
@@ -75,7 +75,7 @@ def main():
     nodes = pd.read_parquet(P / "nodes.parquet", columns=["model_id", "created_at", "created_at_legacy"])
     flags = pd.read_parquet(P / "model_flags.parquet", columns=["model_id", "in_T1"])
     edges = pd.read_parquet(P / "edges_all.parquet")
-    # 분석 그래프와 같은 기준: 스냅샷 안의 부모, 순환 제외, 시간 역전 엣지 제외 (removal_sim.Ecosystem)
+    # same edge criteria as the analysis graph: parent in snapshot, no cycles, no temporally inverted edges (removal_sim.Ecosystem)
     edges = edges[edges["parent_in_snapshot"] & ~edges["in_cycle"]
                   & edges["temporal_ok"].astype("boolean").fillna(True).astype(bool)]
     t1 = set(flags.loc[flags["in_T1"], "model_id"])
@@ -83,12 +83,12 @@ def main():
     summary = json.loads((P / "summary.json").read_text(encoding="utf-8"))
     infer = json.loads((P / "inference_report.json").read_text(encoding="utf-8"))
 
-    # ------------------------------------------------ 1) 직계 자식 수 CCDF: T0 vs T1
+    # ------------------------------------------------ 1) CCDF of direct children: T0 vs T1
     fig, ax = plt.subplots(figsize=(3.5, 2.1))
     for data, lab, st in [(edges, "all models (T0)", dict(color="#A9B4C2", ms=1.6)),
                           (e1, "after cleaning (T1)", dict(color="#23395B", ms=1.6))]:
         deg = data.groupby("parent_id").size().to_numpy()
-        vals, counts = np.unique(deg, return_counts=True)            # 값마다 점 하나
+        vals, counts = np.unique(deg, return_counts=True)            # one point per distinct value
         ccdf = 1 - np.concatenate(([0], np.cumsum(counts)[:-1])) / len(deg)
         ax.loglog(vals, ccdf, "o", mew=0, label=f"{lab}, {len(deg):,} parents", **st)
     ax.set_xlabel("Direct children per parent model")
@@ -101,12 +101,12 @@ def main():
     check_layout(fig)
     save(fig, figs / f"fig_outdegree_ccdf_{snap}")
 
-    # ------------------------------------------------ 2) 연도별 관계 유형 (T1 자식, 부모·자식 모두 실제 업로드 시각)
+    # ------------------------------------------------ 2) relation types per year (T1 children; parent and child both have real upload times)
     created = nodes.set_index("model_id")["created_at"]
     legacy = nodes.set_index("model_id")["created_at_legacy"]
     e = e1[~e1["child_id"].map(legacy)].copy()
     e["year"] = e["child_id"].map(created).dt.year
-    first_year = 2023                     # 2022년 모델은 대부분 이관 날짜(2022-03-02)라 연도를 알 수 없음
+    first_year = 2023                     # most 2022 models carry the migration date (2022-03-02), so their year is unknown
     e = e[e["year"] >= first_year]
     e["rel"] = e["relation"].where(e["relation"].isin(REL_ORDER[:-1]), "other")
     tab = e.pivot_table(index="year", columns="rel", values="child_id", aggfunc="count").fillna(0)
@@ -126,15 +126,15 @@ def main():
     for s in ["top", "right"]:
         ax.spines[s].set_visible(False)
     leg = ax.legend(frameon=False, loc="upper left", fontsize=5.8, handlelength=1.2, ncol=1)
-    # 각주(2026년은 부분 연도, 2022년 제외 이유)는 캡션에 쓴다
+    # footnotes (2026 is a partial year; why 2022 is excluded) go in the caption
     fig.tight_layout(pad=0.25)
-    # 범례가 막대와 겹치지 않는지 검사
+    # check that the legend does not overlap any bar
     check_layout(fig, extra=[(a, p, f"{n} overlaps a bar") for a, n in [(leg, "legend")]
                              for p in ax.patches if p.get_height() > 0])
     save(fig, figs / f"fig_relations_by_year_{snap}")
     print((tab * 1000).astype(int).to_string())
 
-    # ------------------------------------------------ 3) 파일럿 표
+    # ------------------------------------------------ 3) pilot table
     n_t1 = len(t1)
     child_t1 = e1["child_id"].nunique()
     rows = [

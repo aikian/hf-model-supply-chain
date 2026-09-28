@@ -1,12 +1,12 @@
-"""Hugging Face Hub 모델 메타데이터 전수 수집.
+"""Collect metadata for every model on the Hugging Face Hub.
 
-createdAt 오름차순 + cursor 페이지네이션으로 스냅샷을 jsonl.gz에 이어 쓴다.
-중단되면 같은 명령으로 다시 실행하면 state 파일의 cursor부터 재개한다.
+Appends the snapshot to a jsonl.gz using createdAt ascending order and cursor pagination.
+If interrupted, rerunning the same command resumes from the cursor in the state file.
 
-사용:
-    python collect_hf_models.py                    # 전수 수집
-    python collect_hf_models.py --max-pages 3      # 파일럿 (3,000개)
-환경변수 HF_TOKEN이 있으면 사용한다 (rate limit 완화).
+Usage:
+    python collect_hf_models.py                    # full collection
+    python collect_hf_models.py --max-pages 3      # pilot (3,000 models)
+HF_TOKEN is used if set in the environment (relaxes the rate limit).
 """
 import argparse
 import datetime as dt
@@ -39,7 +39,7 @@ def next_link(resp):
 
 
 def wait_seconds(resp):
-    # RateLimit: "api";r=499;t=257  (t = 창이 리셋되기까지 남은 초)
+    # RateLimit: "api";r=499;t=257  (t = seconds until the window resets)
     m = re.search(r"t=(\d+)", resp.headers.get("RateLimit", ""))
     return int(m.group(1)) + 1 if m else 60
 
@@ -68,9 +68,9 @@ def fetch(session, url):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--snapshot", default=dt.date.today().isoformat(),
-                    help="스냅샷 날짜 태그 (재개 시 같은 값)")
+                    help="Snapshot date tag (use the same value when resuming)")
     ap.add_argument("--page-size", type=int, default=1000)
-    ap.add_argument("--max-pages", type=int, default=None, help="파일럿용 페이지 수 제한")
+    ap.add_argument("--max-pages", type=int, default=None, help="Page limit for pilots")
     ap.add_argument("--out-dir", type=Path, default=RAW_DIR)
     args = ap.parse_args()
 
@@ -99,7 +99,7 @@ def main():
             break
         resp = fetch(session, state["url"])
         rows = resp.json()
-        # gzip은 멤버 단위 append가 가능하므로 페이지마다 이어 쓴다
+        # gzip allows member-wise append, so each page is appended as it arrives
         with gzip.open(out_path, "at", encoding="utf-8") as f:
             for r in rows:
                 f.write(json.dumps(r, ensure_ascii=False) + "\n")

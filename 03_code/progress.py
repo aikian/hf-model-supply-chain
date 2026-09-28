@@ -1,10 +1,10 @@
-﻿"""실험 진행 창: 노트북·Colab 의 모든 변형 진행률을 한 화면에 (드라이브로 동기화된 로그를 읽는다).
+﻿"""Experiment progress view: progress of every variant on the laptop and on Colab in one screen (reads the logs synced through Drive).
 
-    python progress.py            # 한 번 출력
-    python progress.py --watch    # 10초마다 새로 고침 (Ctrl+C 로 종료)
+    python progress.py            # print once
+    python progress.py --watch    # refresh every 10 s (Ctrl+C to quit)
 
-단계: 충격 2종 × (탐욕 전략 + k 5개) = 12 + 대체 가능성 + 판정 = 14 단계.
-남은 시간은 지금까지 단계당 평균으로 추정한다 (큰 k 가 더 오래 걸려서 실제로는 조금 더 길 수 있다).
+Steps: 2 shock types x (greedy strategy + 5 k) = 12, plus substitutability and verdicts = 14 steps.
+Remaining time is estimated from the mean time per step so far (larger k take longer, so the real time may be somewhat longer).
 """
 import argparse
 import datetime as dt
@@ -20,14 +20,14 @@ SNAP = "2026-09-25"
 PLAN = [("main", "laptop"), ("main_notest", "laptop"), ("tierT2", "laptop"), ("declared", "laptop"), ("tierT0", "laptop"),
         ("keeptv", "colab"), ("noquant", "colab"), ("coarse", "colab"), ("strictlang", "colab"),
         ("other2unk", "colab"), ("strictcom", "colab"), ("noov", "colab"),
-        # 2026-09-27 심사 대응: 최초 계획 분석, 대조군 기준 민감도
+        # 2026-09-27 review response: initial planned analysis, matched-null criterion sensitivity
         ("planned", "laptop"), ("null_tol90", "colab"), ("null_tol99", "colab"), ("null_nearest", "colab"), ("planned_T0", "colab")]
 STEPS = 14
 STEP_RE = re.compile(r"\[(legal|availability)\] (greedy done|k=\d+ done)")
 
 
 def read_log(name, host):
-    """(로그 텍스트, 시작 시각 또는 None). main 은 예전 방식의 공용 로그에서 마지막 main 실행 부분만 읽는다."""
+    """Return (log text, start time or None). For main, read only the last main run from the old shared log."""
     if name == "main" and not (LOGS / f"{SNAP}_main_{host}.log").exists():
         p = LOGS / f"run_all_{SNAP}.log"
         if not p.exists():
@@ -42,7 +42,7 @@ def read_log(name, host):
     if not p.exists():
         return "", None
     txt = p.read_text(encoding="utf-8", errors="replace")
-    # 같은 로그에 이어 쓰므로, 마지막으로 removal_sim 을 시작한 부분부터만 본다 (중단된 이전 실행의 오류 무시)
+    # the log is appended across runs, so look only from the last removal_sim start (ignores errors of interrupted earlier runs)
     starts = [m.start() for m in re.finditer(r"\[\d\d:\d\d:\d\d\] \$ \S+ 03_simulation/removal_sim\.py", txt)]
     if starts:
         txt = txt[starts[-1]:]
@@ -66,7 +66,7 @@ def status(name, host, now):
     elapsed = eta = ""
     if start:
         t0 = dt.datetime.combine(now.date(), dt.time.fromisoformat(start))
-        # Colab 로그는 UTC 로 찍힌다 → 한국 시간(+9)으로 맞춘다
+        # Colab logs are stamped in UTC; shift to Korean time (+9)
         if host == "colab":
             t0 += dt.timedelta(hours=9)
         if t0 > now + dt.timedelta(minutes=5):
@@ -75,7 +75,7 @@ def status(name, host, now):
         elapsed = f"{el:5.0f}m"
         if 0 < steps < STEPS and not done:
             eta = f"~{el / steps * (STEPS - steps):4.0f}m"
-    # 수동 중단·세션 끊김(KeyboardInterrupt)은 실패가 아니다: 다음 실행 때 저장된 단계부터 이어서 계산한다
+    # a manual stop or dropped session (KeyboardInterrupt) is not a failure: the next run resumes from the saved step
     interrupted = failed and "KeyboardInterrupt" in txt and not re.search(r"MemoryError|Error:", txt)
     state = "DONE" if done else "INT " if interrupted else "FAIL" if failed else "run " if start else "wait"
     return state, steps, elapsed, eta, last
@@ -83,8 +83,8 @@ def status(name, host, now):
 
 def render():
     now = dt.datetime.now()
-    lines = [f"HF 공급망 실험 진행도   {now:%Y-%m-%d %H:%M:%S}   (10초마다 새로 고침, Ctrl+C 종료)", ""]
-    lines.append(f"{'변형':12s} {'장소':7s} {'상태':5s} {'진행':24s} {'경과':>6s} {'남은':>7s}  마지막 단계")
+    lines = [f"HF supply chain experiment progress   {now:%Y-%m-%d %H:%M:%S}   (refreshes every 10 s, Ctrl+C to quit)", ""]
+    lines.append(f"{'variant':12s} {'host':7s} {'state':5s} {'progress':24s} {'time':>6s} {'ETA':>7s}  last step")
     lines.append("-" * 92)
     tot = 0
     for name, host in PLAN:
@@ -94,7 +94,7 @@ def render():
         lines.append(f"{name:12s} {host:7s} {st:5s} {bar} {steps:2d}/{STEPS} {el:>6s} {eta:>7s}  {last}")
     lines.append("-" * 92)
     pct = 100 * tot / (STEPS * len(PLAN))
-    lines.append(f"전체 {pct:5.1f}%   완료 {sum(status(n, h, now)[0] == 'DONE' for n, h in PLAN)}/{len(PLAN)}")
+    lines.append(f"overall {pct:5.1f}%   done {sum(status(n, h, now)[0] == 'DONE' for n, h in PLAN)}/{len(PLAN)}")
     try:
         import ctypes
 
@@ -103,10 +103,10 @@ def render():
                         ("avail", ctypes.c_ulonglong)] + [(f"x{i}", ctypes.c_ulonglong) for i in range(5)]
         m = MS(); m.l = ctypes.sizeof(MS)
         ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(m))
-        lines.append(f"노트북 메모리: 여유 {m.avail / 2**30:.1f} GB / {m.total / 2**30:.1f} GB (사용률 {m.load}%)")
+        lines.append(f"laptop memory: free {m.avail / 2**30:.1f} GB / {m.total / 2**30:.1f} GB (used {m.load}%)")
     except Exception:
         pass
-    lines.append("Colab 줄은 드라이브 동기화 때문에 몇 분 늦게 반영될 수 있어요.")
+    lines.append("Colab rows may lag a few minutes because of Drive sync.")
     return "\n".join(lines)
 
 

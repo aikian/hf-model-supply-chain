@@ -1,23 +1,23 @@
-"""최초 계획(첫 전체 실행 전에 정한 분석) 그대로, 구현 오류만 고친 코드와 최종 데이터로 다시 돌린다.
+"""Rerun the original plan (the analysis fixed before the first full run) with only implementation bugs corrected and the final data.
 
-심사 대응: 원고의 RQ1–RQ3 수치는 결과를 본 뒤 바뀐 '수정 탐색 분석'이다. 이 스크립트는 그와 별도로
-'구현 수정된 최초 계획 분석'(implementation-corrected planned analysis)을 낸다.
+Review response: the RQ1-RQ3 figures in the manuscript come from a 'revised exploratory analysis' changed after seeing results.
+This script separately produces the 'implementation-corrected planned analysis'.
 
-최초 계획 (첫 커밋 21a16a8 의 removal_sim.py / hypothesis_tests.py 와 같다)
-  모집단   T1-original (정제 규칙 전부, test 규칙 포함)
-  옵션     task × language × license, 언어 없음 = 별개 값 (현재 --option strict)
-  충격     전염: 제거 모델 + 모든 후손 (현재 legal)
-  H1       계보가 하나뿐인 옵션 비율의 부트스트랩 95% CI 하한 > 50%
-  H2a      k 마다 표적 4전략 손실 > 균등 무작위 k 개 (단측 경험적 p, Holm 20개), k 의 과반에서 유의하면 지지
-  H2b      k 마다 descendants 표적 손실 > log2(후손+1) 구간 분포를 맞춘 무작위 k 개 (Holm 5개)
-  효과     Cliff's δ
-  H3       어느 한 계열이라도 (상업 옵션 손실 %) / (계열 모델 %) > 1
+Original plan (same as removal_sim.py / hypothesis_tests.py in the first commit 21a16a8)
+  population  T1-original (all cleaning rules, including the test rule)
+  option      task x language x license, missing language = separate value (now --option strict)
+  shock       contagion: removed models + all descendants (now legal)
+  H1          bootstrap 95% CI lower bound of the share of single-lineage options > 50%
+  H2a         per k, loss of the 4 targeted strategies > k uniform random picks (one-sided empirical p, Holm over 20); supported if significant for a majority of k
+  H2b         per k, loss of the descendants target > k random picks matched on the log2(descendants+1) bin distribution (Holm over 5)
+  effect      Cliff's delta
+  H3          for at least one class, (% commercial options lost) / (% models in class) > 1
   seeds    1,000
-유지되는 구현 수정: (1) 공유 이름 규칙 예외, (2) 제공자 후손만 세기, (4) no-derivatives 는 비상업.
-최종 데이터(부모 재연결 포함)를 쓴다. 이는 데이터 수정이며 원고에 밝힌다.
+Implementation fixes kept: (1) shared-name rule exceptions, (2) count provider descendants only, (4) no-derivatives is noncommercial.
+Uses the final data (including parent reconnection). This is a data change and is disclosed in the manuscript.
 
-사용: python planned_analysis.py ../../02_data/processed/2026-09-25 [--seeds 1000]
-출력: 04_results/tables/2026-09-25_planned/ (removal_results.csv, substitutability.csv, planned_tests.csv, planned_verdicts.json)
+Usage: python planned_analysis.py ../../02_data/processed/2026-09-25 [--seeds 1000]
+Output: 04_results/tables/2026-09-25_planned/ (removal_results.csv, substitutability.csv, planned_tests.csv, planned_verdicts.json)
 """
 import argparse
 import json
@@ -39,7 +39,7 @@ TARGETED = ["descendants", "descendant_authors", "downloads", "outdegree"]
 
 
 def matched_random(rng, cand, cand_desc, target, k):
-    """v1 과 같다: 표적 집합의 log2(후손+1) 구간별 개수를 맞춰 무작위 추출."""
+    """Same as v1: random draw matching the target set's per-bin counts of log2(descendants+1)."""
     bins = np.floor(np.log2(cand_desc + 1)).astype(int)
     in_t = np.isin(cand, target)
     tbins = np.floor(np.log2(cand_desc[in_t] + 1)).astype(int)
@@ -154,7 +154,7 @@ def main():
     ap.add_argument("--seeds", type=int, default=1000)
     extra = ["--option", "strict"] + ([] if "--tier" in sys.argv else ["--tier", "T1"])
     args = ap.parse_args(sys.argv[1:] + extra)
-    suffix = "" if args.tier == "T1" else f"_{args.tier}"          # T0: 최초 실행에서 T1 과 H2b 가 엇갈렸던 모집단
+    suffix = "" if args.tier == "T1" else f"_{args.tier}"          # T0: the population whose H2b verdict disagreed with T1 in the first run
     args.out = args.out or Path(__file__).resolve().parents[2] / "04_results" / "tables" / f"{args.processed.name}_full_planned{suffix}"
     eco, out = load_inputs(args)
     out.mkdir(parents=True, exist_ok=True)
@@ -167,7 +167,7 @@ def main():
     t, v = tests(res, sub)
     t.to_csv(out / "planned_tests.csv", index=False)
     (out / "planned_verdicts.json").write_text(json.dumps(v, indent=1), encoding="utf-8")
-    (out / "hypothesis_verdicts.json").write_text(json.dumps(v, indent=1), encoding="utf-8")   # 진행 창의 완료 표시용
+    (out / "hypothesis_verdicts.json").write_text(json.dumps(v, indent=1), encoding="utf-8")   # completion marker for the progress window
     print(json.dumps(v, indent=1))
 
 

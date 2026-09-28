@@ -1,16 +1,16 @@
-"""논문용 정제 검증 표본 추출 (원고 §Data Cleaning and Its Validation). ⚠ Stage 2에서, 규칙 동결 후 실행한다.
+"""Draw the cleaning validation sample for the paper (manuscript section "Data Cleaning and Its Validation"). Run in Stage 2, after the rules are frozen.
 
-- 제외 규칙별 50개 (f_bot, f_boilerplate, f_course, f_test) + 유지(T1) 100개
-- 규칙 개발 때 본 모델(dev_rule_development/*.csv)은 후보에서 뺀다
-- 한 모델이 여러 층에 걸리면 먼저 뽑힌 층에만 둔다
-- 판정자에게 층과 flag를 숨긴 판정용 파일, 그리고 층 정보가 담긴 키 파일을 따로 만든다
+- 50 models per exclusion rule (f_bot, f_boilerplate, f_course, f_test) + 100 retained (T1) models
+- models seen during rule development (dev_rule_development/*.csv) are excluded from the candidate pool
+- a model that matches several strata stays only in the stratum drawn first
+- writes a labeling file that hides stratum and flags from the rater, and a separate key file with the strata
 
-출력 (02_data/validation/)
-    paper_validation_to_label.csv   model_id, url, label, type, note  (판정자용, 순서 섞음)
-    paper_validation_key.csv        model_id, stratum                  (판정 끝난 뒤에만 연다)
-    paper_validation_meta.json      시드, 규칙 파일 해시, 층별 개수
+Output (02_data/validation/)
+    paper_validation_to_label.csv   model_id, url, label, type, note  (for the rater, shuffled)
+    paper_validation_key.csv        model_id, stratum                  (open only after labeling is finished)
+    paper_validation_meta.json      seed, rule file hashes, counts per stratum
 
-사용
+Usage
     python draw_validation_sample.py ../../02_data/processed/2026-09-25 --seed 20270205
 """
 import argparse
@@ -32,12 +32,12 @@ def sha256(path):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("processed", type=Path)
-    ap.add_argument("--seed", type=int, required=True, help="사전에 정해 원고에 적을 시드")
+    ap.add_argument("--seed", type=int, required=True, help="seed fixed in advance and reported in the manuscript")
     args = ap.parse_args()
 
     out_label = VAL / "paper_validation_to_label.csv"
     if out_label.exists():
-        raise SystemExit(f"이미 있음: {out_label} (재추출하면 검증이 무효가 된다)")
+        raise SystemExit(f"already exists: {out_label} (redrawing would invalidate the validation)")
 
     f = pd.read_parquet(args.processed / "model_flags.parquet")
     seen = set()

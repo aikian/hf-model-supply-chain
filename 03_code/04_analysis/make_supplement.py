@@ -1,7 +1,7 @@
-"""보충 자료(supplement.tex)용 LaTeX 표를 결과 파일에서 만든다. 결과가 바뀌면 다시 돌린다.
+"""Build the LaTeX tables for the supplement (supplement.tex) from the result files. Rerun when results change.
 
-출력: 05_paper_tse/supplement_generated/*.tex
-사용: python make_supplement.py
+Output: 05_paper_tse/supplement_generated/*.tex
+Usage: python make_supplement.py
 """
 import ast
 import json
@@ -109,7 +109,7 @@ def mde_table():
 
 
 def diff_table():
-    """본 분석의 H2 검정별: 관측 손실, 대조군 평균, 차이, 대조군 95% 구간, 제거 규모 비율 중앙값 (옵션 수 단위)."""
+    """Per H2 test of the main analysis: observed loss, null mean, difference, null 95% interval, median removal-size ratio (in option counts)."""
     r = pd.read_csv(d("main_notest") / "removal_results.csv")
     crit = pd.read_csv(d("main_notest") / "detectable_effects.csv").set_index(["semantics", "k", "strategy"]).critical
     out = []
@@ -157,8 +157,8 @@ def rq1_table():
 
 def license_table():
     lm = pd.read_csv(ROOT / "03_code" / "03_simulation" / "license_map.csv").fillna("")
-    # 분석에서 쓰는 정의 (removal_sim.COMMERCIAL_CLASSES) 를 따른다. license_map.csv 의 commercial 열은
-    # 라이선스 원문의 허용 여부라서 no-derivatives 가 yes 로 되어 있다 — 분석 정의와 다르므로 쓰지 않는다.
+    # Follow the definition used in the analysis (removal_sim.COMMERCIAL_CLASSES). The commercial column of
+    # license_map.csv reflects the license text, so no-derivatives is "yes" there; it differs from the analysis definition and is not used.
     import sys
     sys.path.insert(0, str(ROOT / "03_code" / "03_simulation"))
     from removal_sim import COMMERCIAL_CLASSES

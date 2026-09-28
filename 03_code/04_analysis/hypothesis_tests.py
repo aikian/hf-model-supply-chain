@@ -1,17 +1,19 @@
-"""가설 판정 (v2, 2026-09-26 모의 심사 반영). 시뮬레이션 결과 CSV를 읽어 판정표를 만든다.
+"""Hypothesis verdicts (v2, after the 2026-09-26 mock review). Reads the simulation result CSVs and writes the verdict table.
 
-H1   계보가 하나뿐인 기능 옵션의 비율 > 50%                                   ← substitutability.csv
-     전수 데이터라 부트스트랩 CI 는 쓰지 않는다 (정확한 비율). 루트 정의 민감도(고립 모델 제외)를 함께 낸다.
-H2   충격 종류(legal, availability)별로: 각 k 에서 표적 전략의 손실 > 같은 규모(제거 제공자 수)로 맞춘
-     무작위 대조군 분포 (단측 경험적 p). Holm 보정은 충격 종류별 묶음 안에서 (전략 4 × k 5 = 20).
-     k 의 과반에서 (어느 전략이든) 유의하면 지지.
-     효과 크기: 손실 배율 = 관측 / 대조군 평균, 대조군 분포에서 관측값의 백분위.
-     참고값(판정에 쓰지 않음): 균등 무작위(같은 k) 대비 배율, 탐욕적 최대 손실.
-H3   법적 충격에서 비상업·회사 라이선스 계열 각각: (부수 피해 상업 옵션 손실 비율) / (해당 계열 모델 비율) > 1 (둘 다)
+H1   share of functional options with a single lineage > 50%                         <- substitutability.csv
+     Full-population data, so no bootstrap CI (the share is exact). A root-definition sensitivity (isolated models excluded) is reported too.
+H2   per shock type (legal, availability): at each k, the targeted strategy's loss > the distribution of the
+     matched null (random removals with the same number of removed providers), one-sided empirical p. Holm correction
+     within each shock-type family (4 strategies x 5 k = 20).
+     Supported if significant (for any strategy) at a majority of k.
+     Effect size: loss ratio = observed / null mean, and the percentile of the observed value in the null distribution.
+     Reference values (not used for the verdict): ratio vs. uniform random (same k), greedy maximal loss.
+H3   under the legal shock, for each of the noncommercial and vendor-custom license classes:
+     (share of collateral commercial option loss) / (share of models in that class) > 1 (both)
 
-⚠ 경험적 p 의 최솟값은 1/(seeds+1). 묶음 크기 20 에서 유의가 가능하려면 seeds ≥ 400.
+Caveat: the smallest possible empirical p is 1/(seeds+1). With a family of 20, significance needs seeds >= 400.
 
-사용
+Usage
     python hypothesis_tests.py ../../04_results/tables/2026-09-25_full_main
     python hypothesis_tests.py --selftest
 """
@@ -29,13 +31,13 @@ H3_CLASSES = ["noncommercial", "vendor_custom"]
 
 
 def empirical_p(observed, null):
-    """단측 경험적 p: (1 + #{null ≥ obs}) / (1 + N)."""
+    """One-sided empirical p: (1 + #{null ≥ obs}) / (1 + N)."""
     null = np.asarray(null)
     return (1 + np.sum(null >= observed)) / (1 + len(null))
 
 
 def holm(pvals, alpha=ALPHA):
-    """Holm–Bonferroni. 입력 순서대로 (조정 p, 기각 여부)."""
+    """Holm–Bonferroni. Returns (adjusted p, reject flags) in input order."""
     p = np.asarray(pvals, dtype=float)
     order = np.argsort(p)
     m = len(p)
@@ -51,13 +53,13 @@ def test_h1(subst):
     s = subst[subst["n_root_lineages"] > 0]
     out = {"share_single_lineage": float((s["n_root_lineages"] == 1).mean()), "n_options": int(len(s))}
     out["supported"] = bool(out["share_single_lineage"] > 0.5)
-    if "n_root_lineages_known" in subst:                     # 민감도: 고립 모델(부모·자식 없음)을 계보로 세지 않음
+    if "n_root_lineages_known" in subst:                     # sensitivity: isolated models (no parent, no child) not counted as lineages
         k = subst[subst["n_root_lineages_known"] > 0]
         out["sensitivity_isolated_excluded"] = {
             "share_single_lineage": float((k["n_root_lineages_known"] == 1).mean()),
             "n_options": int(len(k)),
             "options_only_from_isolated_models": int((subst["n_root_lineages_known"] == 0).sum())}
-    if "n_root_lineages_arch" in subst and (subst["n_root_lineages_arch"] >= 0).any():   # 하한: 구조 태그로 루트 묶음
+    if "n_root_lineages_arch" in subst and (subst["n_root_lineages_arch"] >= 0).any():   # lower bound: roots grouped by architecture tag
         a = subst[subst["n_root_lineages_arch"] > 0]
         out["lower_bound_architecture_grouped"] = {
             "share_single_lineage": float((a["n_root_lineages_arch"] == 1).mean()), "n_options": int(len(a))}

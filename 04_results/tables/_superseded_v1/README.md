@@ -1,6 +1,8 @@
-# 폐기된 1차 실행 결과 (2026-09-26 01:06–02:10)
+# Superseded first run (2026-09-26 01:06–02:10)
 
-아래 세 가지 구현 오류를 발견해 폐기했다. 수정 내용은 `../../analysis_changelog.md` 참고. 보존 목적으로만 남긴다.
-1. 공유 이름(튜토리얼) 규칙이 원본 모델(FLUX.1-dev, Llama-3.1-8B-Instruct 등)과 미러를 T1에서 제외
-2. 표적 선정용 후손 수가 정제에서 제외된 모델(봇 업로드)까지 셈
-3. H3 지표가 제거한 라이선스 계열 자신의 옵션 손실을 포함 (동어반복), 판정이 "아무 계열이나 하나"
+Stage: initial planned analysis, first full run (`2026-09-25_full_main` = T1-original, `tierT0`, `tierT2` = T2-original).
+
+Superseded after the three implementation errors below were found. The fixes are described in the Analysis Provenance and Deviations section of the paper and in the paper's section on analysis provenance and deviations. Kept for the record only.
+1. The shared-name (boilerplate) rule excluded original models (FLUX.1-dev, Llama-3.1-8B-Instruct, etc.) and their mirrors from T1
+2. Descendant counts used for targeting also counted models excluded by cleaning (bot uploads)
+3. The H3 measure included the option loss of the excluded license class itself (tautological), and the decision rule was "any one class" (the paper records this item as a change in the H3 operationalization rather than an implementation error)
